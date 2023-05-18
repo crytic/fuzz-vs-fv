@@ -1,0 +1,11 @@
+deployer: "0x30000" 
+sender: ["0x10000", "0x20000", "0x30000"]
+filterBlacklist: true
+filterFunctions: [
+  "FaucetToken.allocateTo(address,uint256)",
+  "FaucetToken.approveFrom(address,address,uint256)",
+  "SimplePriceFeed.setPrice(int256)"
+]
+corpusDir: "contracts/echidna/corpus"
+testLimit: 50000
+# allContracts: true

@@ -1,0 +1,1536 @@
+<style> code { white-space: pre-wrap; display: block; background-color: #eee; }.executed { background-color: #afa; }.reverted { background-color: #ffa; }.unexecuted { background-color: #faa; }.neutral { background-color: #eee; }</style><b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/node_modules/@openzeppelin/contracts/utils/Context.sol</b>
+<code>
+  1 |     | <span class='unexecuted'>// SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='neutral'>pragma solidity ^0.8.0;</span>
+  5 |     | <span class='neutral'></span>
+  6 |     | <span class='neutral'>/**</span>
+  7 |     | <span class='neutral'> * @dev Provides information about the current execution context, including the</span>
+  8 |     | <span class='neutral'> * sender of the transaction and its data. While these are generally available</span>
+  9 |     | <span class='neutral'> * via msg.sender and msg.data, they should not be accessed in such a direct</span>
+ 10 |     | <span class='neutral'> * manner, since when dealing with meta-transactions the account sending and</span>
+ 11 |     | <span class='neutral'> * paying for execution may not be the actual sender (as far as an application</span>
+ 12 |     | <span class='neutral'> * is concerned).</span>
+ 13 |     | <span class='neutral'> *</span>
+ 14 |     | <span class='neutral'> * This contract is only required for intermediate, library-like contracts.</span>
+ 15 |     | <span class='neutral'> */</span>
+ 16 |     | <span class='neutral'>abstract contract Context {</span>
+ 17 |     | <span class='neutral'>    function _msgSender() internal view virtual returns (address) {</span>
+ 18 | *r  | <span class='executed'>        return msg.sender;</span>
+ 19 |     | <span class='neutral'>    }</span>
+ 20 |     | <span class='neutral'></span>
+ 21 |     | <span class='neutral'>    function _msgData() internal view virtual returns (bytes calldata) {</span>
+ 22 |     | <span class='neutral'>        return msg.data;</span>
+ 23 |     | <span class='neutral'>    }</span>
+ 24 |     | <span class='neutral'>}</span>
+ 25 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/node_modules/@zk-kit/incremental-merkle-tree.sol/Hashes.sol</b>
+<code>
+  1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>pragma solidity ^0.8.4;</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='unexecuted'></span>
+  5 |     | <span class='neutral'>library PoseidonT3 {</span>
+  6 |     | <span class='neutral'></span>
+  7 |     | <span class='unexecuted'>  function poseidon(uint256[2] memory inputs) public pure returns (uint256) {</span>
+  8 |     | <span class='unexecuted'>    return uint256(keccak256(abi.encodePacked(inputs[0], inputs[1])));</span>
+  9 |     | <span class='neutral'>  }</span>
+ 10 |     | <span class='neutral'>}</span>
+ 11 |     | <span class='unexecuted'></span>
+ 12 |     | <span class='neutral'>library PoseidonT6 {</span>
+ 13 |     | <span class='unexecuted'>    function poseidon(uint256[5] memory) public pure returns (uint256) {}</span>
+ 14 |     | <span class='neutral'>}</span>
+ 15 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/node_modules/@zk-kit/incremental-merkle-tree.sol/IncrementalBinaryTree.sol</b>
+<code>
+   1 |     | <span class='neutral'>// SPDX-License-Identifier: MIT</span>
+   2 |     | <span class='neutral'>pragma solidity ^0.8.4;</span>
+   3 |     | <span class='neutral'></span>
+   4 |     | <span class='neutral'>import {PoseidonT3} from &quot;./Hashes.sol&quot;;</span>
+   5 |     | <span class='neutral'></span>
+   6 |     | <span class='neutral'>// Each incremental tree has certain properties and data that will</span>
+   7 |     | <span class='neutral'>// be used to add new leaves.</span>
+   8 |     | <span class='neutral'>struct IncrementalTreeData {</span>
+   9 |     | <span class='neutral'>    uint256 depth; // Depth of the tree (levels - 1).</span>
+  10 |     | <span class='neutral'>    uint256 root; // Root hash of the tree.</span>
+  11 |     | <span class='neutral'>    uint256 numberOfLeaves; // Number of leaves of the tree.</span>
+  12 |     | <span class='neutral'>    mapping(uint256 =&gt; uint256) zeroes; // Zero hashes used for empty nodes (level -&gt; zero hash).</span>
+  13 |     | <span class='neutral'>    // The nodes of the subtrees used in the last addition of a leaf (level -&gt; [left node, right node]).</span>
+  14 |     | <span class='neutral'>    mapping(uint256 =&gt; uint256[2]) lastSubtrees; // Caching these values is essential to efficient appends.</span>
+  15 |     | <span class='neutral'>}</span>
+  16 |     | <span class='neutral'></span>
+  17 |     | <span class='neutral'>/// @title Incremental binary Merkle tree.</span>
+  18 |     | <span class='neutral'>/// @dev The incremental tree allows to calculate the root hash each time a leaf is added, ensuring</span>
+  19 |     | <span class='unexecuted'>/// the integrity of the tree.</span>
+  20 |     | <span class='neutral'>library IncrementalBinaryTree {</span>
+  21 |     | <span class='unexecuted'>    uint8 internal constant MAX_DEPTH = 32;</span>
+  22 |     | <span class='neutral'>    uint256 internal constant SNARK_SCALAR_FIELD =</span>
+  23 |     | <span class='neutral'>        21888242871839275222246405745257275088548364400416034343698204186575808495617;</span>
+  24 |     | <span class='neutral'></span>
+  25 |     | <span class='neutral'>    /// @dev Initializes a tree.</span>
+  26 |     | <span class='neutral'>    /// @param self: Tree data.</span>
+  27 |     | <span class='neutral'>    /// @param depth: Depth of the tree.</span>
+  28 |     | <span class='neutral'>    /// @param zero: Zero value to be used.</span>
+  29 |     | <span class='unexecuted'>    function init(</span>
+  30 |     | <span class='neutral'>        IncrementalTreeData storage self,</span>
+  31 |     | <span class='neutral'>        uint256 depth,</span>
+  32 |     | <span class='neutral'>        uint256 zero</span>
+  33 |     | <span class='neutral'>    ) public {</span>
+  34 |     | <span class='unexecuted'>        require(zero &lt; SNARK_SCALAR_FIELD, &quot;IncrementalBinaryTree: leaf must be &lt; SNARK_SCALAR_FIELD&quot;);</span>
+  35 |     | <span class='unexecuted'>        require(depth &gt; 0 &amp;&amp; depth &lt;= MAX_DEPTH, &quot;IncrementalBinaryTree: tree depth must be between 1 and 32&quot;);</span>
+  36 |     | <span class='neutral'></span>
+  37 |     | <span class='unexecuted'>        self.depth = depth;</span>
+  38 |     | <span class='neutral'></span>
+  39 |     | <span class='unexecuted'>        for (uint8 i = 0; i &lt; depth; ) {</span>
+  40 |     | <span class='unexecuted'>            self.zeroes[i] = zero;</span>
+  41 |     | <span class='unexecuted'>            zero = PoseidonT3.poseidon([zero, zero]);</span>
+  42 |     | <span class='neutral'></span>
+  43 |     | <span class='neutral'>            unchecked {</span>
+  44 |     | <span class='unexecuted'>                ++i;</span>
+  45 |     | <span class='neutral'>            }</span>
+  46 |     | <span class='neutral'>        }</span>
+  47 |     | <span class='neutral'></span>
+  48 |     | <span class='unexecuted'>        self.root = zero;</span>
+  49 |     | <span class='neutral'>    }</span>
+  50 |     | <span class='neutral'></span>
+  51 |     | <span class='neutral'>    /// @dev Inserts a leaf in the tree.</span>
+  52 |     | <span class='neutral'>    /// @param self: Tree data.</span>
+  53 |     | <span class='neutral'>    /// @param leaf: Leaf to be inserted.</span>
+  54 |     | <span class='unexecuted'>    function insert(IncrementalTreeData storage self, uint256 leaf) public {</span>
+  55 |     | <span class='unexecuted'>        uint256 depth = self.depth;</span>
+  56 |     | <span class='neutral'></span>
+  57 |     | <span class='unexecuted'>        require(leaf &lt; SNARK_SCALAR_FIELD, &quot;IncrementalBinaryTree: leaf must be &lt; SNARK_SCALAR_FIELD&quot;);</span>
+  58 |     | <span class='unexecuted'>        require(self.numberOfLeaves &lt; 2**depth, &quot;IncrementalBinaryTree: tree is full&quot;);</span>
+  59 |     | <span class='neutral'></span>
+  60 |     | <span class='unexecuted'>        uint256 index = self.numberOfLeaves;</span>
+  61 |     | <span class='unexecuted'>        uint256 hash = leaf;</span>
+  62 |     | <span class='neutral'></span>
+  63 |     | <span class='unexecuted'>        for (uint8 i = 0; i &lt; depth; ) {</span>
+  64 |     | <span class='unexecuted'>            if (index &amp; 1 == 0) {</span>
+  65 |     | <span class='unexecuted'>                self.lastSubtrees[i] = [hash, self.zeroes[i]];</span>
+  66 |     | <span class='neutral'>            } else {</span>
+  67 |     | <span class='unexecuted'>                self.lastSubtrees[i][1] = hash;</span>
+  68 |     | <span class='neutral'>            }</span>
+  69 |     | <span class='neutral'></span>
+  70 |     | <span class='unexecuted'>            hash = PoseidonT3.poseidon(self.lastSubtrees[i]);</span>
+  71 |     | <span class='unexecuted'>            index &gt;&gt;= 1;</span>
+  72 |     | <span class='neutral'></span>
+  73 |     | <span class='neutral'>            unchecked {</span>
+  74 |     | <span class='unexecuted'>                ++i;</span>
+  75 |     | <span class='neutral'>            }</span>
+  76 |     | <span class='neutral'>        }</span>
+  77 |     | <span class='neutral'></span>
+  78 |     | <span class='unexecuted'>        self.root = hash;</span>
+  79 |     | <span class='unexecuted'>        self.numberOfLeaves += 1;</span>
+  80 |     | <span class='neutral'>    }</span>
+  81 |     | <span class='neutral'></span>
+  82 |     | <span class='neutral'>    /// @dev Updates a leaf in the tree.</span>
+  83 |     | <span class='neutral'>    /// @param self: Tree data.</span>
+  84 |     | <span class='neutral'>    /// @param leaf: Leaf to be updated.</span>
+  85 |     | <span class='neutral'>    /// @param newLeaf: New leaf.</span>
+  86 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+  87 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+  88 |     | <span class='unexecuted'>    function update(</span>
+  89 |     | <span class='neutral'>        IncrementalTreeData storage self,</span>
+  90 |     | <span class='neutral'>        uint256 leaf,</span>
+  91 |     | <span class='neutral'>        uint256 newLeaf,</span>
+  92 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+  93 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+  94 |     | <span class='neutral'>    ) public {</span>
+  95 |     | <span class='unexecuted'>        require(</span>
+  96 |     | <span class='unexecuted'>            verify(self, leaf, proofSiblings, proofPathIndices),</span>
+  97 |     | <span class='neutral'>            &quot;IncrementalBinaryTree: leaf is not part of the tree&quot;</span>
+  98 |     | <span class='neutral'>        );</span>
+  99 |     | <span class='neutral'></span>
+ 100 |     | <span class='unexecuted'>        uint256 depth = self.depth;</span>
+ 101 |     | <span class='unexecuted'>        uint256 hash = newLeaf;</span>
+ 102 |     | <span class='neutral'></span>
+ 103 |     | <span class='neutral'>        uint256 updateIndex;</span>
+ 104 |     | <span class='unexecuted'>        for (uint8 i = 0; i &lt; depth; ) {</span>
+ 105 |     | <span class='unexecuted'>            updateIndex |= uint256(proofPathIndices[i] &amp; 1) &lt;&lt; uint256(i);</span>
+ 106 |     | <span class='unexecuted'>            if (proofPathIndices[i] == 0) {</span>
+ 107 |     | <span class='unexecuted'>                if (proofSiblings[i] == self.lastSubtrees[i][1]) {</span>
+ 108 |     | <span class='unexecuted'>                    self.lastSubtrees[i][0] = hash;</span>
+ 109 |     | <span class='neutral'>                }</span>
+ 110 |     | <span class='neutral'></span>
+ 111 |     | <span class='unexecuted'>                hash = PoseidonT3.poseidon([hash, proofSiblings[i]]);</span>
+ 112 |     | <span class='neutral'>            } else {</span>
+ 113 |     | <span class='unexecuted'>                if (proofSiblings[i] == self.lastSubtrees[i][0]) {</span>
+ 114 |     | <span class='unexecuted'>                    self.lastSubtrees[i][1] = hash;</span>
+ 115 |     | <span class='neutral'>                }</span>
+ 116 |     | <span class='neutral'></span>
+ 117 |     | <span class='unexecuted'>                hash = PoseidonT3.poseidon([proofSiblings[i], hash]);</span>
+ 118 |     | <span class='neutral'>            }</span>
+ 119 |     | <span class='neutral'></span>
+ 120 |     | <span class='neutral'>            unchecked {</span>
+ 121 |     | <span class='unexecuted'>                ++i;</span>
+ 122 |     | <span class='neutral'>            }</span>
+ 123 |     | <span class='neutral'>        }</span>
+ 124 |     | <span class='unexecuted'>        require(updateIndex &lt; self.numberOfLeaves, &quot;IncrementalBinaryTree: leaf index out of range&quot;);</span>
+ 125 |     | <span class='neutral'></span>
+ 126 |     | <span class='unexecuted'>        self.root = hash;</span>
+ 127 |     | <span class='neutral'>    }</span>
+ 128 |     | <span class='neutral'></span>
+ 129 |     | <span class='neutral'>    /// @dev Removes a leaf from the tree.</span>
+ 130 |     | <span class='neutral'>    /// @param self: Tree data.</span>
+ 131 |     | <span class='neutral'>    /// @param leaf: Leaf to be removed.</span>
+ 132 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+ 133 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+ 134 |     | <span class='unexecuted'>    function remove(</span>
+ 135 |     | <span class='neutral'>        IncrementalTreeData storage self,</span>
+ 136 |     | <span class='neutral'>        uint256 leaf,</span>
+ 137 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 138 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 139 |     | <span class='neutral'>    ) public {</span>
+ 140 |     | <span class='unexecuted'>        update(self, leaf, self.zeroes[0], proofSiblings, proofPathIndices);</span>
+ 141 |     | <span class='neutral'>    }</span>
+ 142 |     | <span class='neutral'></span>
+ 143 |     | <span class='neutral'>    /// @dev Verify if the path is correct and the leaf is part of the tree.</span>
+ 144 |     | <span class='neutral'>    /// @param self: Tree data.</span>
+ 145 |     | <span class='neutral'>    /// @param leaf: Leaf to be removed.</span>
+ 146 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+ 147 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+ 148 |     | <span class='neutral'>    /// @return True or false.</span>
+ 149 |     | <span class='unexecuted'>    function verify(</span>
+ 150 |     | <span class='neutral'>        IncrementalTreeData storage self,</span>
+ 151 |     | <span class='neutral'>        uint256 leaf,</span>
+ 152 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 153 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 154 |     | <span class='unexecuted'>    ) private view returns (bool) {</span>
+ 155 |     | <span class='unexecuted'>        require(leaf &lt; SNARK_SCALAR_FIELD, &quot;IncrementalBinaryTree: leaf must be &lt; SNARK_SCALAR_FIELD&quot;);</span>
+ 156 |     | <span class='unexecuted'>        uint256 depth = self.depth;</span>
+ 157 |     | <span class='unexecuted'>        require(</span>
+ 158 |     | <span class='unexecuted'>            proofPathIndices.length == depth &amp;&amp; proofSiblings.length == depth,</span>
+ 159 |     | <span class='neutral'>            &quot;IncrementalBinaryTree: length of path is not correct&quot;</span>
+ 160 |     | <span class='neutral'>        );</span>
+ 161 |     | <span class='neutral'></span>
+ 162 |     | <span class='unexecuted'>        uint256 hash = leaf;</span>
+ 163 |     | <span class='neutral'></span>
+ 164 |     | <span class='unexecuted'>        for (uint8 i = 0; i &lt; depth; ) {</span>
+ 165 |     | <span class='unexecuted'>            require(</span>
+ 166 |     | <span class='unexecuted'>                proofSiblings[i] &lt; SNARK_SCALAR_FIELD,</span>
+ 167 |     | <span class='neutral'>                &quot;IncrementalBinaryTree: sibling node must be &lt; SNARK_SCALAR_FIELD&quot;</span>
+ 168 |     | <span class='neutral'>            );</span>
+ 169 |     | <span class='neutral'></span>
+ 170 |     | <span class='unexecuted'>            if (proofPathIndices[i] == 0) {</span>
+ 171 |     | <span class='unexecuted'>                hash = PoseidonT3.poseidon([hash, proofSiblings[i]]);</span>
+ 172 |     | <span class='neutral'>            } else {</span>
+ 173 |     | <span class='unexecuted'>                hash = PoseidonT3.poseidon([proofSiblings[i], hash]);</span>
+ 174 |     | <span class='neutral'>            }</span>
+ 175 |     | <span class='neutral'></span>
+ 176 |     | <span class='neutral'>            unchecked {</span>
+ 177 |     | <span class='unexecuted'>                ++i;</span>
+ 178 |     | <span class='neutral'>            }</span>
+ 179 |     | <span class='neutral'>        }</span>
+ 180 |     | <span class='neutral'></span>
+ 181 |     | <span class='unexecuted'>        return true; //hash == self.root;</span>
+ 182 |     | <span class='neutral'>    }</span>
+ 183 |     | <span class='neutral'>}</span>
+ 184 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/Semaphore.sol</b>
+<code>
+   1 |     | <span class='neutral'>// SPDX-License-Identifier: MIT</span>
+   2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+   3 |     | <span class='neutral'></span>
+   4 |     | <span class='neutral'>import &quot;./interfaces/ISemaphore.sol&quot;;</span>
+   5 |     | <span class='neutral'>import &quot;./interfaces/ISemaphoreVerifier.sol&quot;;</span>
+   6 |     | <span class='neutral'>import &quot;./base/SemaphoreGroups.sol&quot;;</span>
+   7 |     | <span class='neutral'></span>
+   8 | *r  | <span class='executed'>/// @title Semaphore</span>
+   9 |     | <span class='neutral'>contract Semaphore is ISemaphore, SemaphoreGroups {</span>
+  10 | *r  | <span class='executed'>    ISemaphoreVerifier public verifier;</span>
+  11 |     | <span class='neutral'></span>
+  12 |     | <span class='neutral'>    /// @dev Gets a group id and returns the group parameters.</span>
+  13 |     | <span class='unexecuted'>    mapping(uint256 =&gt; Group) public groups;</span>
+  14 |     | <span class='neutral'></span>
+  15 |     | <span class='neutral'>    /// @dev Checks if the group admin is the transaction sender.</span>
+  16 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  17 |     | <span class='neutral'>    modifier onlyGroupAdmin(uint256 groupId) {</span>
+  18 | *r  | <span class='executed'>        if (groups[groupId].admin != _msgSender()) {</span>
+  19 | *r  | <span class='executed'>            revert Semaphore__CallerIsNotTheGroupAdmin();</span>
+  20 |     | <span class='neutral'>        }</span>
+  21 |     | <span class='neutral'>        _;</span>
+  22 |     | <span class='neutral'>    }</span>
+  23 |     | <span class='neutral'></span>
+  24 |     | <span class='neutral'>    /// @dev Checks if there is a verifier for the given tree depth.</span>
+  25 |     | <span class='neutral'>    /// @param merkleTreeDepth: Depth of the tree.</span>
+  26 |     | <span class='neutral'>    modifier onlySupportedMerkleTreeDepth(uint256 merkleTreeDepth) {</span>
+  27 | *   | <span class='executed'>        if (merkleTreeDepth &lt; 16 || merkleTreeDepth &gt; 32) {</span>
+  28 | *   | <span class='executed'>            revert Semaphore__MerkleTreeDepthIsNotSupported();</span>
+  29 |     | <span class='neutral'>        }</span>
+  30 |     | <span class='neutral'>        _;</span>
+  31 |     | <span class='neutral'>    }</span>
+  32 |     | <span class='neutral'></span>
+  33 |     | <span class='neutral'>    /// @dev Initializes the Semaphore verifier used to verify the user&#39;s ZK proofs.</span>
+  34 |     | <span class='neutral'>    /// @param _verifier: Semaphore verifier address.</span>
+  35 |     | <span class='unexecuted'>    constructor(ISemaphoreVerifier _verifier) {</span>
+  36 |     | <span class='unexecuted'>        verifier = _verifier;</span>
+  37 |     | <span class='neutral'>    }</span>
+  38 |     | <span class='neutral'></span>
+  39 |     | <span class='neutral'>    /// @dev See {ISemaphore-createGroup}.</span>
+  40 | *r  | <span class='executed'>    function createGroup(</span>
+  41 |     | <span class='neutral'>        uint256 groupId,</span>
+  42 |     | <span class='neutral'>        uint256 merkleTreeDepth,</span>
+  43 |     | <span class='neutral'>        uint256 zeroValue,</span>
+  44 |     | <span class='neutral'>        address admin</span>
+  45 | *   | <span class='executed'>    ) external override onlySupportedMerkleTreeDepth(merkleTreeDepth) {</span>
+  46 | *   | <span class='executed'>        _createGroup(groupId, merkleTreeDepth, zeroValue);</span>
+  47 |     | <span class='neutral'></span>
+  48 | *   | <span class='executed'>        groups[groupId].admin = admin;</span>
+  49 | *   | <span class='executed'>        groups[groupId].merkleRootDuration = 1 hours;</span>
+  50 |     | <span class='neutral'></span>
+  51 | *   | <span class='executed'>        emit GroupAdminUpdated(groupId, address(0), admin);</span>
+  52 |     | <span class='neutral'>    }</span>
+  53 |     | <span class='neutral'></span>
+  54 |     | <span class='neutral'>    /// @dev See {ISemaphore-createGroup}.</span>
+  55 | *r  | <span class='executed'>    function createGroup(</span>
+  56 |     | <span class='neutral'>        uint256 groupId,</span>
+  57 |     | <span class='neutral'>        uint256 merkleTreeDepth,</span>
+  58 |     | <span class='neutral'>        uint256 zeroValue,</span>
+  59 |     | <span class='neutral'>        address admin,</span>
+  60 |     | <span class='neutral'>        uint256 merkleTreeRootDuration</span>
+  61 |     | <span class='unexecuted'>    ) external override onlySupportedMerkleTreeDepth(merkleTreeDepth) {</span>
+  62 |     | <span class='unexecuted'>        _createGroup(groupId, merkleTreeDepth, zeroValue);</span>
+  63 |     | <span class='neutral'></span>
+  64 | *r  | <span class='executed'>        groups[groupId].admin = admin;</span>
+  65 | r   | <span class='reverted'>        groups[groupId].merkleRootDuration = merkleTreeRootDuration;</span>
+  66 |     | <span class='neutral'></span>
+  67 | r   | <span class='reverted'>        emit GroupAdminUpdated(groupId, address(0), admin);</span>
+  68 |     | <span class='neutral'>    }</span>
+  69 |     | <span class='neutral'></span>
+  70 |     | <span class='neutral'>    /// @dev See {ISemaphore-updateGroupAdmin}.</span>
+  71 |     | <span class='unexecuted'>    function updateGroupAdmin(uint256 groupId, address newAdmin) external override onlyGroupAdmin(groupId) {</span>
+  72 |     | <span class='unexecuted'>        groups[groupId].admin = newAdmin;</span>
+  73 |     | <span class='neutral'></span>
+  74 |     | <span class='unexecuted'>        emit GroupAdminUpdated(groupId, _msgSender(), newAdmin);</span>
+  75 |     | <span class='neutral'>    }</span>
+  76 |     | <span class='neutral'></span>
+  77 |     | <span class='neutral'>    /// @dev See {ISemaphore-addMember}.</span>
+  78 | *r  | <span class='executed'>    function addMember(uint256 groupId, uint256 identityCommitment) external override onlyGroupAdmin(groupId) {</span>
+  79 | *r  | <span class='executed'>        _addMember(groupId, identityCommitment);</span>
+  80 |     | <span class='neutral'></span>
+  81 | *   | <span class='executed'>        uint256 merkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+  82 |     | <span class='neutral'></span>
+  83 | *   | <span class='executed'>        groups[groupId].merkleRootCreationDates[merkleTreeRoot] = block.timestamp;</span>
+  84 |     | <span class='neutral'>    }</span>
+  85 |     | <span class='neutral'></span>
+  86 |     | <span class='neutral'>    /// @dev See {ISemaphore-addMembers}.</span>
+  87 | *r  | <span class='executed'>    function addMembers(uint256 groupId, uint256[] calldata identityCommitments)</span>
+  88 |     | <span class='neutral'>        external</span>
+  89 |     | <span class='neutral'>        override</span>
+  90 |     | <span class='neutral'>        onlyGroupAdmin(groupId)</span>
+  91 |     | <span class='neutral'>    {</span>
+  92 | r   | <span class='reverted'>        for (uint8 i = 0; i &lt; identityCommitments.length; ) {</span>
+  93 | *r  | <span class='executed'>            _addMember(groupId, identityCommitments[i]);</span>
+  94 |     | <span class='neutral'></span>
+  95 |     | <span class='neutral'>            unchecked {</span>
+  96 |     | <span class='unexecuted'>                ++i;</span>
+  97 |     | <span class='neutral'>            }</span>
+  98 |     | <span class='neutral'>        }</span>
+  99 |     | <span class='neutral'></span>
+ 100 |     | <span class='unexecuted'>        uint256 merkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+ 101 |     | <span class='neutral'></span>
+ 102 | *   | <span class='executed'>        groups[groupId].merkleRootCreationDates[merkleTreeRoot] = block.timestamp;</span>
+ 103 |     | <span class='neutral'>    }</span>
+ 104 |     | <span class='neutral'></span>
+ 105 |     | <span class='neutral'>    /// @dev See {ISemaphore-updateMember}.</span>
+ 106 | *r  | <span class='executed'>    function updateMember(</span>
+ 107 |     | <span class='neutral'>        uint256 groupId,</span>
+ 108 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+ 109 |     | <span class='neutral'>        uint256 newIdentityCommitment,</span>
+ 110 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 111 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 112 |     | <span class='neutral'>    ) external override onlyGroupAdmin(groupId) {</span>
+ 113 | *r  | <span class='executed'>        _updateMember(groupId, identityCommitment, newIdentityCommitment, proofSiblings, proofPathIndices);</span>
+ 114 |     | <span class='neutral'></span>
+ 115 | *r  | <span class='executed'>        uint256 merkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+ 116 |     | <span class='neutral'></span>
+ 117 | *r  | <span class='executed'>        groups[groupId].merkleRootCreationDates[merkleTreeRoot] = block.timestamp;</span>
+ 118 |     | <span class='neutral'>    }</span>
+ 119 |     | <span class='neutral'></span>
+ 120 |     | <span class='neutral'>    /// @dev See {ISemaphore-removeMember}.</span>
+ 121 | *r  | <span class='executed'>    function removeMember(</span>
+ 122 |     | <span class='neutral'>        uint256 groupId,</span>
+ 123 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+ 124 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 125 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 126 |     | <span class='neutral'>    ) external override onlyGroupAdmin(groupId) {</span>
+ 127 | *r  | <span class='executed'>        _removeMember(groupId, identityCommitment, proofSiblings, proofPathIndices);</span>
+ 128 |     | <span class='neutral'></span>
+ 129 | *   | <span class='executed'>        uint256 merkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+ 130 |     | <span class='neutral'></span>
+ 131 | *   | <span class='executed'>        groups[groupId].merkleRootCreationDates[merkleTreeRoot] = block.timestamp;</span>
+ 132 |     | <span class='neutral'>    }</span>
+ 133 |     | <span class='neutral'></span>
+ 134 |     | <span class='neutral'>    /// @dev See {ISemaphore-verifyProof}.</span>
+ 135 | *r  | <span class='executed'>    function verifyProof(</span>
+ 136 |     | <span class='neutral'>        uint256 groupId,</span>
+ 137 |     | <span class='neutral'>        uint256 merkleTreeRoot,</span>
+ 138 |     | <span class='neutral'>        uint256 signal,</span>
+ 139 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+ 140 |     | <span class='neutral'>        uint256 externalNullifier,</span>
+ 141 |     | <span class='neutral'>        uint256[8] calldata proof</span>
+ 142 |     | <span class='neutral'>    ) external override {</span>
+ 143 | *   | <span class='executed'>        uint256 currentMerkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+ 144 |     | <span class='neutral'></span>
+ 145 | *r  | <span class='executed'>        if (currentMerkleTreeRoot == 0) {</span>
+ 146 | *r  | <span class='executed'>            revert Semaphore__GroupDoesNotExist();</span>
+ 147 |     | <span class='neutral'>        }</span>
+ 148 |     | <span class='neutral'></span>
+ 149 | *r  | <span class='executed'>        if (merkleTreeRoot != currentMerkleTreeRoot) {</span>
+ 150 | *r  | <span class='executed'>            uint256 merkleRootCreationDate = groups[groupId].merkleRootCreationDates[merkleTreeRoot];</span>
+ 151 |     | <span class='unexecuted'>            uint256 merkleRootDuration = groups[groupId].merkleRootDuration;</span>
+ 152 |     | <span class='neutral'></span>
+ 153 | *r  | <span class='executed'>            if (merkleRootCreationDate == 0) {</span>
+ 154 | *r  | <span class='executed'>                revert Semaphore__MerkleTreeRootIsNotPartOfTheGroup();</span>
+ 155 |     | <span class='neutral'>            }</span>
+ 156 |     | <span class='neutral'></span>
+ 157 | *r  | <span class='executed'>            if (block.timestamp &gt; merkleRootCreationDate + merkleRootDuration) {</span>
+ 158 | *r  | <span class='executed'>                revert Semaphore__MerkleTreeRootIsExpired();</span>
+ 159 |     | <span class='neutral'>            }</span>
+ 160 |     | <span class='neutral'>        }</span>
+ 161 |     | <span class='neutral'></span>
+ 162 | *r  | <span class='executed'>        if (groups[groupId].nullifierHashes[nullifierHash]) {</span>
+ 163 | *r  | <span class='executed'>            revert Semaphore__YouAreUsingTheSameNillifierTwice();</span>
+ 164 |     | <span class='neutral'>        }</span>
+ 165 |     | <span class='neutral'></span>
+ 166 | *r  | <span class='executed'>        uint256 merkleTreeDepth = getMerkleTreeDepth(groupId);</span>
+ 167 |     | <span class='neutral'></span>
+ 168 | *r  | <span class='executed'>        verifier.verifyProof(merkleTreeRoot, nullifierHash, signal, externalNullifier, proof, merkleTreeDepth);</span>
+ 169 |     | <span class='neutral'></span>
+ 170 | *r  | <span class='executed'>        groups[groupId].nullifierHashes[nullifierHash] = true;</span>
+ 171 |     | <span class='neutral'></span>
+ 172 | *r  | <span class='executed'>        emit ProofVerified(groupId, merkleTreeRoot, nullifierHash, externalNullifier, signal);</span>
+ 173 |     | <span class='neutral'>    }</span>
+ 174 |     | <span class='neutral'>}</span>
+ 175 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/base/Pairing.sol</b>
+<code>
+   1 |     | <span class='neutral'>// Copyright 2017 Christian Reitwiessner</span>
+   2 |     | <span class='neutral'>// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the &quot;Software&quot;), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</span>
+   3 |     | <span class='neutral'>// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</span>
+   4 |     | <span class='neutral'>// THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</span>
+   5 |     | <span class='neutral'>//</span>
+   6 |     | <span class='neutral'>// The following Pairing library is a modified version adapted to Semaphore.</span>
+   7 |     | <span class='neutral'>//</span>
+   8 |     | <span class='neutral'>// SPDX-License-Identifier: MIT</span>
+   9 |     | <span class='neutral'>pragma solidity ^0.8.4;</span>
+  10 |     | <span class='unexecuted'></span>
+  11 |     | <span class='neutral'>library Pairing {</span>
+  12 |     | <span class='neutral'>    error Semaphore__InvalidProof();</span>
+  13 |     | <span class='neutral'></span>
+  14 |     | <span class='neutral'>    // The prime q in the base field F_q for G1</span>
+  15 |     | <span class='unexecuted'>    uint256 constant BASE_MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;</span>
+  16 |     | <span class='neutral'></span>
+  17 |     | <span class='neutral'>    // The prime moludus of the scalar field of G1.</span>
+  18 |     | <span class='unexecuted'>    uint256 constant SCALAR_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617;</span>
+  19 |     | <span class='neutral'></span>
+  20 |     | <span class='neutral'>    struct G1Point {</span>
+  21 |     | <span class='neutral'>        uint256 X;</span>
+  22 |     | <span class='neutral'>        uint256 Y;</span>
+  23 |     | <span class='neutral'>    }</span>
+  24 |     | <span class='neutral'></span>
+  25 |     | <span class='neutral'>    // Encoding of field elements is: X[0] * z + X[1]</span>
+  26 |     | <span class='neutral'>    struct G2Point {</span>
+  27 |     | <span class='neutral'>        uint256[2] X;</span>
+  28 |     | <span class='neutral'>        uint256[2] Y;</span>
+  29 |     | <span class='neutral'>    }</span>
+  30 |     | <span class='neutral'></span>
+  31 |     | <span class='neutral'>    /// @return the generator of G1</span>
+  32 |     | <span class='unexecuted'>    function P1() public pure returns (G1Point memory) {</span>
+  33 |     | <span class='unexecuted'>        return G1Point(1, 2);</span>
+  34 |     | <span class='neutral'>    }</span>
+  35 |     | <span class='neutral'></span>
+  36 |     | <span class='neutral'>    /// @return the generator of G2</span>
+  37 |     | <span class='unexecuted'>    function P2() public pure returns (G2Point memory) {</span>
+  38 |     | <span class='neutral'>        return</span>
+  39 |     | <span class='unexecuted'>            G2Point(</span>
+  40 |     | <span class='neutral'>                [</span>
+  41 |     | <span class='unexecuted'>                    11559732032986387107991004021392285783925812861821192530917403151452391805634,</span>
+  42 |     | <span class='unexecuted'>                    10857046999023057135944570762232829481370756359578518086990519993285655852781</span>
+  43 |     | <span class='neutral'>                ],</span>
+  44 |     | <span class='neutral'>                [</span>
+  45 |     | <span class='unexecuted'>                    4082367875863433681332203403145435568316851327593401208105741076214120093531,</span>
+  46 |     | <span class='unexecuted'>                    8495653923123431417604973247489272438418190587263600148770280649306958101930</span>
+  47 |     | <span class='neutral'>                ]</span>
+  48 |     | <span class='neutral'>            );</span>
+  49 |     | <span class='neutral'>    }</span>
+  50 |     | <span class='neutral'></span>
+  51 |     | <span class='neutral'>    /// @return r the negation of p, i.e. p.addition(p.negate()) should be zero.</span>
+  52 |     | <span class='unexecuted'>    function negate(G1Point memory p) public pure returns (G1Point memory r) {</span>
+  53 |     | <span class='unexecuted'>        if (p.X == 0 &amp;&amp; p.Y == 0) {</span>
+  54 |     | <span class='unexecuted'>            return G1Point(0, 0);</span>
+  55 |     | <span class='neutral'>        }</span>
+  56 |     | <span class='neutral'></span>
+  57 |     | <span class='neutral'>        // Validate input or revert</span>
+  58 |     | <span class='unexecuted'>        if (p.X &gt;= BASE_MODULUS || p.Y &gt;= BASE_MODULUS) {</span>
+  59 |     | <span class='unexecuted'>            revert Semaphore__InvalidProof();</span>
+  60 |     | <span class='neutral'>        }</span>
+  61 |     | <span class='neutral'></span>
+  62 |     | <span class='neutral'>        // We know p.Y &gt; 0 and p.Y &lt; BASE_MODULUS.</span>
+  63 |     | <span class='unexecuted'>        return G1Point(p.X, BASE_MODULUS - p.Y);</span>
+  64 |     | <span class='neutral'>    }</span>
+  65 |     | <span class='neutral'></span>
+  66 |     | <span class='neutral'>    /// @return r the sum of two points of G1</span>
+  67 |     | <span class='unexecuted'>    function addition(G1Point memory p1, G1Point memory p2) public view returns (G1Point memory r) {</span>
+  68 |     | <span class='neutral'>        // By EIP-196 all input is validated to be less than the BASE_MODULUS and form points</span>
+  69 |     | <span class='neutral'>        // on the curve.</span>
+  70 |     | <span class='unexecuted'>        uint256[4] memory input;</span>
+  71 |     | <span class='neutral'></span>
+  72 |     | <span class='unexecuted'>        input[0] = p1.X;</span>
+  73 |     | <span class='unexecuted'>        input[1] = p1.Y;</span>
+  74 |     | <span class='unexecuted'>        input[2] = p2.X;</span>
+  75 |     | <span class='unexecuted'>        input[3] = p2.Y;</span>
+  76 |     | <span class='neutral'></span>
+  77 |     | <span class='neutral'>        bool success;</span>
+  78 |     | <span class='neutral'></span>
+  79 |     | <span class='neutral'>        // solium-disable-next-line security/no-inline-assembly</span>
+  80 |     | <span class='neutral'>        assembly {</span>
+  81 |     | <span class='unexecuted'>            success := staticcall(sub(gas(), 2000), 6, input, 0xc0, r, 0x60)</span>
+  82 |     | <span class='neutral'>        }</span>
+  83 |     | <span class='neutral'></span>
+  84 |     | <span class='unexecuted'>        if (!success) {</span>
+  85 |     | <span class='unexecuted'>            revert Semaphore__InvalidProof();</span>
+  86 |     | <span class='neutral'>        }</span>
+  87 |     | <span class='neutral'>    }</span>
+  88 |     | <span class='neutral'></span>
+  89 |     | <span class='neutral'>    /// @return r the product of a point on G1 and a scalar, i.e.</span>
+  90 |     | <span class='neutral'>    /// p == p.scalar_mul(1) and p.addition(p) == p.scalar_mul(2) for all points p.</span>
+  91 |     | <span class='unexecuted'>    function scalar_mul(G1Point memory p, uint256 s) public view returns (G1Point memory r) {</span>
+  92 |     | <span class='neutral'>        // By EIP-196 the values p.X and p.Y are verified to less than the BASE_MODULUS and</span>
+  93 |     | <span class='neutral'>        // form a valid point on the curve. But the scalar is not verified, so we do that explicitelly.</span>
+  94 |     | <span class='unexecuted'>        if (s &gt;= SCALAR_MODULUS) {</span>
+  95 |     | <span class='unexecuted'>            revert Semaphore__InvalidProof();</span>
+  96 |     | <span class='neutral'>        }</span>
+  97 |     | <span class='neutral'></span>
+  98 |     | <span class='unexecuted'>        uint256[3] memory input;</span>
+  99 |     | <span class='neutral'></span>
+ 100 |     | <span class='unexecuted'>        input[0] = p.X;</span>
+ 101 |     | <span class='unexecuted'>        input[1] = p.Y;</span>
+ 102 |     | <span class='unexecuted'>        input[2] = s;</span>
+ 103 |     | <span class='neutral'></span>
+ 104 |     | <span class='neutral'>        bool success;</span>
+ 105 |     | <span class='neutral'></span>
+ 106 |     | <span class='neutral'>        // solium-disable-next-line security/no-inline-assembly</span>
+ 107 |     | <span class='neutral'>        assembly {</span>
+ 108 |     | <span class='unexecuted'>            success := staticcall(sub(gas(), 2000), 7, input, 0x80, r, 0x60)</span>
+ 109 |     | <span class='neutral'>        }</span>
+ 110 |     | <span class='neutral'></span>
+ 111 |     | <span class='unexecuted'>        if (!success) {</span>
+ 112 |     | <span class='unexecuted'>            revert Semaphore__InvalidProof();</span>
+ 113 |     | <span class='neutral'>        }</span>
+ 114 |     | <span class='neutral'>    }</span>
+ 115 |     | <span class='neutral'></span>
+ 116 |     | <span class='neutral'>    /// Asserts the pairing check</span>
+ 117 |     | <span class='neutral'>    /// e(p1[0], p2[0]) *  .... * e(p1[n], p2[n]) == 1</span>
+ 118 |     | <span class='neutral'>    /// For example pairing([P1(), P1().negate()], [P2(), P2()]) should succeed</span>
+ 119 |     | <span class='unexecuted'>    function pairingCheck(G1Point[] memory p1, G2Point[] memory p2) public view {</span>
+ 120 |     | <span class='neutral'>        // By EIP-197 all input is verified to be less than the BASE_MODULUS and form elements in their</span>
+ 121 |     | <span class='neutral'>        // respective groups of the right order.</span>
+ 122 |     | <span class='unexecuted'>        if (p1.length != p2.length) {</span>
+ 123 |     | <span class='unexecuted'>            revert Semaphore__InvalidProof();</span>
+ 124 |     | <span class='neutral'>        }</span>
+ 125 |     | <span class='neutral'></span>
+ 126 |     | <span class='unexecuted'>        uint256 elements = p1.length;</span>
+ 127 |     | <span class='unexecuted'>        uint256 inputSize = elements * 6;</span>
+ 128 |     | <span class='unexecuted'>        uint256[] memory input = new uint256[](inputSize);</span>
+ 129 |     | <span class='neutral'></span>
+ 130 |     | <span class='unexecuted'>        for (uint256 i = 0; i &lt; elements; i++) {</span>
+ 131 |     | <span class='unexecuted'>            input[i * 6 + 0] = p1[i].X;</span>
+ 132 |     | <span class='unexecuted'>            input[i * 6 + 1] = p1[i].Y;</span>
+ 133 |     | <span class='unexecuted'>            input[i * 6 + 2] = p2[i].X[0];</span>
+ 134 |     | <span class='unexecuted'>            input[i * 6 + 3] = p2[i].X[1];</span>
+ 135 |     | <span class='unexecuted'>            input[i * 6 + 4] = p2[i].Y[0];</span>
+ 136 |     | <span class='unexecuted'>            input[i * 6 + 5] = p2[i].Y[1];</span>
+ 137 |     | <span class='neutral'>        }</span>
+ 138 |     | <span class='neutral'></span>
+ 139 |     | <span class='unexecuted'>        uint256[1] memory out;</span>
+ 140 |     | <span class='unexecuted'>        bool success;</span>
+ 141 |     | <span class='neutral'></span>
+ 142 |     | <span class='neutral'>        // solium-disable-next-line security/no-inline-assembly</span>
+ 143 |     | <span class='neutral'>        assembly {</span>
+ 144 |     | <span class='unexecuted'>            success := staticcall(sub(gas(), 2000), 8, add(input, 0x20), mul(inputSize, 0x20), out, 0x20)</span>
+ 145 |     | <span class='neutral'>        }</span>
+ 146 |     | <span class='neutral'></span>
+ 147 |     | <span class='unexecuted'>        if (!success || out[0] != 1) {</span>
+ 148 |     | <span class='unexecuted'>            revert Semaphore__InvalidProof();</span>
+ 149 |     | <span class='neutral'>        }</span>
+ 150 |     | <span class='neutral'>    }</span>
+ 151 |     | <span class='neutral'>}</span>
+ 152 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/base/SemaphoreGroups.sol</b>
+<code>
+   1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+   2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+   3 |     | <span class='neutral'></span>
+   4 |     | <span class='neutral'>import &quot;../interfaces/ISemaphoreGroups.sol&quot;;</span>
+   5 |     | <span class='neutral'>import &quot;@zk-kit/incremental-merkle-tree.sol/IncrementalBinaryTree.sol&quot;;</span>
+   6 |     | <span class='neutral'>import &quot;@openzeppelin/contracts/utils/Context.sol&quot;;</span>
+   7 |     | <span class='neutral'></span>
+   8 |     | <span class='neutral'>/// @title Semaphore groups contract.</span>
+   9 |     | <span class='neutral'>/// @dev The following code allows you to create groups, add and remove members.</span>
+  10 |     | <span class='neutral'>/// You can use getters to obtain informations about groups (root, depth, number of leaves).</span>
+  11 |     | <span class='neutral'>abstract contract SemaphoreGroups is Context, ISemaphoreGroups {</span>
+  12 |     | <span class='neutral'>    using IncrementalBinaryTree for IncrementalTreeData;</span>
+  13 |     | <span class='neutral'></span>
+  14 |     | <span class='neutral'>    /// @dev Gets a group id and returns the tree data.</span>
+  15 |     | <span class='neutral'>    mapping(uint256 =&gt; IncrementalTreeData) internal merkleTree;</span>
+  16 |     | <span class='neutral'></span>
+  17 |     | <span class='neutral'>    /// @dev Creates a new group by initializing the associated tree.</span>
+  18 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  19 |     | <span class='neutral'>    /// @param merkleTreeDepth: Depth of the tree.</span>
+  20 |     | <span class='neutral'>    /// @param zeroValue: Zero value of the tree.</span>
+  21 | *r  | <span class='executed'>    function _createGroup(</span>
+  22 |     | <span class='neutral'>        uint256 groupId,</span>
+  23 |     | <span class='neutral'>        uint256 merkleTreeDepth,</span>
+  24 |     | <span class='neutral'>        uint256 zeroValue</span>
+  25 |     | <span class='neutral'>    ) internal virtual {</span>
+  26 | *r  | <span class='executed'>        if (getMerkleTreeDepth(groupId) != 0) {</span>
+  27 | *r  | <span class='executed'>            revert Semaphore__GroupAlreadyExists();</span>
+  28 |     | <span class='neutral'>        }</span>
+  29 | *r  | <span class='executed'>        merkleTree[groupId].init(merkleTreeDepth, zeroValue);</span>
+  30 |     | <span class='neutral'></span>
+  31 |     | <span class='unexecuted'>        emit GroupCreated(groupId, merkleTreeDepth, zeroValue);</span>
+  32 |     | <span class='neutral'>    }</span>
+  33 |     | <span class='neutral'></span>
+  34 |     | <span class='neutral'>    /// @dev Adds an identity commitment to an existing group.</span>
+  35 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  36 |     | <span class='neutral'>    /// @param identityCommitment: New identity commitment.</span>
+  37 | *r  | <span class='executed'>    function _addMember(uint256 groupId, uint256 identityCommitment) internal virtual {</span>
+  38 | *r  | <span class='executed'>        if (getMerkleTreeDepth(groupId) == 0) {</span>
+  39 | *r  | <span class='executed'>            revert Semaphore__GroupDoesNotExist();</span>
+  40 |     | <span class='neutral'>        }</span>
+  41 |     | <span class='neutral'></span>
+  42 | *r  | <span class='executed'>        merkleTree[groupId].insert(identityCommitment);</span>
+  43 |     | <span class='neutral'></span>
+  44 | *   | <span class='executed'>        uint256 merkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+  45 | *r  | <span class='executed'>        uint256 index = getNumberOfMerkleTreeLeaves(groupId) - 1;</span>
+  46 |     | <span class='neutral'></span>
+  47 | *r  | <span class='executed'>        emit MemberAdded(groupId, index, identityCommitment, merkleTreeRoot);</span>
+  48 |     | <span class='neutral'>    }</span>
+  49 |     | <span class='neutral'></span>
+  50 |     | <span class='neutral'>    /// @dev Updates an identity commitment of an existing group. A proof of membership is</span>
+  51 |     | <span class='neutral'>    /// needed to check if the node to be updated is part of the tree.</span>
+  52 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  53 |     | <span class='neutral'>    /// @param identityCommitment: Existing identity commitment to be updated.</span>
+  54 |     | <span class='neutral'>    /// @param newIdentityCommitment: New identity commitment.</span>
+  55 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+  56 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+  57 | *r  | <span class='executed'>    function _updateMember(</span>
+  58 |     | <span class='neutral'>        uint256 groupId,</span>
+  59 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+  60 |     | <span class='neutral'>        uint256 newIdentityCommitment,</span>
+  61 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+  62 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+  63 |     | <span class='neutral'>    ) internal virtual {</span>
+  64 | *r  | <span class='executed'>        if (getMerkleTreeRoot(groupId) == 0) {</span>
+  65 | *r  | <span class='executed'>            revert Semaphore__GroupDoesNotExist();</span>
+  66 |     | <span class='neutral'>        }</span>
+  67 |     | <span class='neutral'></span>
+  68 | *r  | <span class='executed'>        merkleTree[groupId].update(identityCommitment, newIdentityCommitment, proofSiblings, proofPathIndices);</span>
+  69 |     | <span class='neutral'></span>
+  70 | *r  | <span class='executed'>        uint256 merkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+  71 | *r  | <span class='executed'>        uint256 index = proofPathIndicesToMemberIndex(proofPathIndices);</span>
+  72 |     | <span class='neutral'></span>
+  73 | *r  | <span class='executed'>        emit MemberUpdated(groupId, index, identityCommitment, newIdentityCommitment, merkleTreeRoot);</span>
+  74 |     | <span class='neutral'>    }</span>
+  75 |     | <span class='neutral'></span>
+  76 |     | <span class='neutral'>    /// @dev Removes an identity commitment from an existing group. A proof of membership is</span>
+  77 |     | <span class='neutral'>    /// needed to check if the node to be deleted is part of the tree.</span>
+  78 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  79 |     | <span class='neutral'>    /// @param identityCommitment: Existing identity commitment to be removed.</span>
+  80 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+  81 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+  82 | *r  | <span class='executed'>    function _removeMember(</span>
+  83 |     | <span class='neutral'>        uint256 groupId,</span>
+  84 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+  85 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+  86 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+  87 |     | <span class='neutral'>    ) internal virtual {</span>
+  88 | *r  | <span class='executed'>        if (getMerkleTreeRoot(groupId) == 0) {</span>
+  89 | *r  | <span class='executed'>            revert Semaphore__GroupDoesNotExist();</span>
+  90 |     | <span class='neutral'>        }</span>
+  91 |     | <span class='neutral'></span>
+  92 | *r  | <span class='executed'>        merkleTree[groupId].remove(identityCommitment, proofSiblings, proofPathIndices);</span>
+  93 |     | <span class='neutral'></span>
+  94 | *   | <span class='executed'>        uint256 merkleTreeRoot = getMerkleTreeRoot(groupId);</span>
+  95 | *r  | <span class='executed'>        uint256 index = proofPathIndicesToMemberIndex(proofPathIndices);</span>
+  96 |     | <span class='neutral'></span>
+  97 | *r  | <span class='executed'>        emit MemberRemoved(groupId, index, identityCommitment, merkleTreeRoot);</span>
+  98 |     | <span class='neutral'>    }</span>
+  99 |     | <span class='neutral'></span>
+ 100 |     | <span class='neutral'>    /// @dev See {ISemaphoreGroups-getMerkleTreeRoot}.</span>
+ 101 | *r  | <span class='executed'>    function getMerkleTreeRoot(uint256 groupId) public view virtual override returns (uint256) {</span>
+ 102 | *r  | <span class='executed'>        return merkleTree[groupId].root;</span>
+ 103 |     | <span class='neutral'>    }</span>
+ 104 |     | <span class='neutral'></span>
+ 105 |     | <span class='neutral'>    /// @dev See {ISemaphoreGroups-getMerkleTreeDepth}.</span>
+ 106 | *r  | <span class='executed'>    function getMerkleTreeDepth(uint256 groupId) public view virtual override returns (uint256) {</span>
+ 107 | *r  | <span class='executed'>        return merkleTree[groupId].depth;</span>
+ 108 |     | <span class='neutral'>    }</span>
+ 109 |     | <span class='neutral'></span>
+ 110 |     | <span class='neutral'>    /// @dev See {ISemaphoreGroups-getNumberOfMerkleTreeLeaves}.</span>
+ 111 | *r  | <span class='executed'>    function getNumberOfMerkleTreeLeaves(uint256 groupId) public view virtual override returns (uint256) {</span>
+ 112 | *r  | <span class='executed'>        return merkleTree[groupId].numberOfLeaves;</span>
+ 113 |     | <span class='neutral'>    }</span>
+ 114 |     | <span class='neutral'></span>
+ 115 |     | <span class='neutral'>    /// @dev Converts the path indices of a Merkle proof to the identity commitment index in the tree.</span>
+ 116 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+ 117 |     | <span class='neutral'>    /// @return Index of a group member.</span>
+ 118 | *r  | <span class='executed'>    function proofPathIndicesToMemberIndex(uint8[] calldata proofPathIndices) private pure returns (uint256) {</span>
+ 119 |     | <span class='neutral'>        uint256 memberIndex = 0;</span>
+ 120 |     | <span class='neutral'></span>
+ 121 | *r  | <span class='executed'>        for (uint8 i = uint8(proofPathIndices.length); i &gt; 0; ) {</span>
+ 122 | *r  | <span class='executed'>            if (memberIndex &gt; 0 || proofPathIndices[i - 1] != 0) {</span>
+ 123 | *r  | <span class='executed'>                memberIndex *= 2;</span>
+ 124 |     | <span class='neutral'></span>
+ 125 | *r  | <span class='executed'>                if (proofPathIndices[i - 1] == 1) {</span>
+ 126 | *r  | <span class='executed'>                    memberIndex += 1;</span>
+ 127 |     | <span class='neutral'>                }</span>
+ 128 |     | <span class='neutral'>            }</span>
+ 129 |     | <span class='neutral'></span>
+ 130 |     | <span class='neutral'>            unchecked {</span>
+ 131 | *   | <span class='executed'>                --i;</span>
+ 132 |     | <span class='neutral'>            }</span>
+ 133 |     | <span class='neutral'>        }</span>
+ 134 |     | <span class='neutral'></span>
+ 135 | *r  | <span class='executed'>        return memberIndex;</span>
+ 136 |     | <span class='neutral'>    }</span>
+ 137 |     | <span class='neutral'>}</span>
+ 138 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/base/SemaphoreVerifier.sol</b>
+<code>
+   1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+   2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+   3 |     | <span class='neutral'></span>
+   4 |     | <span class='neutral'>import &quot;../interfaces/ISemaphoreVerifier.sol&quot;;</span>
+   5 |     | <span class='neutral'></span>
+   6 |     | <span class='neutral'>/// @title Semaphore verifier contract.</span>
+   7 |     | <span class='neutral'>/// @notice Minimal code to allow users to verify their Semaphore proofs.</span>
+   8 |     | <span class='neutral'>/// @dev The following code verifies that the proof is correct and it is a</span>
+   9 |     | <span class='neutral'>/// modified version of the Verifier Groth16 template of SnarkJS</span>
+  10 |     | <span class='neutral'>/// (https://github.com/iden3/snarkjs) adapted to Semaphore. The Pairing library</span>
+  11 |     | <span class='unexecuted'>/// is extarnal.</span>
+  12 |     | <span class='neutral'>contract SemaphoreVerifier is ISemaphoreVerifier {</span>
+  13 |     | <span class='neutral'>    using Pairing for *;</span>
+  14 |     | <span class='neutral'></span>
+  15 |     | <span class='neutral'>    // prettier-ignore</span>
+  16 |     | <span class='neutral'>    // solhint-disable-next-line</span>
+  17 |     | <span class='unexecuted'>    uint256[2][7][17]  VK_POINTS = [[[13406811599156507528361773763681356312643537981039994686313383243831956396116,16243966861079634958125511652590761846958471358623040426599000904006426210032],[11781596534582143578120404722739278517564025497573071755253972265891888117374,15688083679237922164673518758181461582601853873216319711156397437601833996222],[1964404930528116823793003656764176108669615750422202377358993070935069307720,2137714996673694828207437580381836490878070731768805974506391024595988817424],[19568893707760843340848992184233194433177372925415116053368211122719346671126,11639469568629189918046964192305250472192697612201524135560178632824282818614],[5317268879687484957437879782519918549127939892210247573193613900261494313825,528174394975085006443543773707702838726735933116136102590448357278717993744],[14865918005176722116473730206622066845866539143554731094374354951675249722731,3197770568483953664363740385883457803041685902965668289308665954510373380344],[6863358721495494421022713667808247652425178970453300712435830652679038918987,15025816433373311798308762709072064417001390853103872064614174594927359131281]],[[15629200772768268814959330350023920183087521275477047626405113853190187031523,13589689305661231568162336263197960570915890299814486885851912452076929115480],[11464919285924930973853174493551975632739604254498590354200272115844983493029,16004221700357242255845535848024178544616388017965468694776181247983831995562],[17789438292552571310739605737896030466581277887660997531707911256058650850910,4112657509505371631825493224748310061184972897405589115208158208294581472016],[3322052920119834475842380240689494113984887785733316517680891208549118967155,381029395779795399840019487059126246243641886087320875571067736504031557148],[8777645223617381095463415690983421308854368583891690388850387317049320450400,11923582117369144413749726090967341613266070909169947059497952692052020331958],[15493263571528401950994933073246603557158047091963487223668240334879173885581,6315532173951617115856055775098532808695228294437279844344466163873167020700],[3481637421055377106140197938175958155334313900824697193932986771017625492245,20088416136090515091300914661950097694450984520235647990572441134215240947932]],[[9218320951536642499143228327011901814587826948504871816273184688188019956292,19717684456458906358368865507225121991585492363133107109865920739019288468011],[16717590750910963405756115910371408378114896008824240863060392362901176601412,18221695645112467945186983098720611586049108689347006136423489099202471884089],[4691595252082380256698158158199364410440273386659834000993210659508747323919,9205801980459323513061837717352821162780471027241700646145937351740096374660],[16150531426263112884093068164597994126623437929929609532055221646496813246000,20245743178241899668170758952526381872637304119026868520579207157118516761827],[6063536446992770713985314309889717594240410784717230886576072989709763902848,18258781411255795973918859665416013869184055573057512603788635470145328981347],[10109932964756104512054045207253535333686585863745296080906925765480296575285,4174640428253153601540284363759502713687021920150940723252842152556151210349],[18049428534741480832385046397049175120355008065781483226058177421025493210952,591730261265040164434889324846001338201068482543108348317417391345612814922]],[[3995128789564535587814512245259203300137618476815456454931286633947953135662,15953239752392927777442331623182226063776310198012173504208557434319753428770],[20957319343912866335583737646657534123362052690050674068142580221965936605075,2523786679709693946058523307330825034772478122295850507521258983130425334580],[9877211178693075145402462781884120278654771727348087433632224794894486095150,19972682062587174829535281061580296764150591339640180868104711395548066529340],[6324578424031095537345184040149690238371517387586958921377481904541316423724,15513931720576048544404512239839508014664224085062729779520992909505663748296],[11371337652479737143800707796204655130812036287859296372695832558127430723628,11757275188600040111649009832378343123994225623498773406233261322165903848967],[13282496583564708104981015168203451877588903263486398132954741568835583461335,1746144324840370907926720490289700342734912534857331743685374514401176014195],[7993952462467372951144011615584426050192046712674662254138390197508963352374,5156942148925224345709309361345680948125600198010285179548841917923439945819]],[[18976133691706015337908381757202123182841901611067930614519324084182946094218,1382518990777992893805140303684642328066746531257780279226677247567004248173],[6627710380771660558660627878547223719795356903257079198333641681330388499309,21806956747910197517744499423107239699428979652113081469385876768212706694581],[19918517214839406678907482305035208173510172567546071380302965459737278553528,7151186077716310064777520690144511885696297127165278362082219441732663131220],[690581125971423619528508316402701520070153774868732534279095503611995849608,21271996888576045810415843612869789314680408477068973024786458305950370465558],[16461282535702132833442937829027913110152135149151199860671943445720775371319,2814052162479976678403678512565563275428791320557060777323643795017729081887],[4319780315499060392574138782191013129592543766464046592208884866569377437627,13920930439395002698339449999482247728129484070642079851312682993555105218086],[3554830803181375418665292545416227334138838284686406179598687755626325482686,5951609174746846070367113593675211691311013364421437923470787371738135276998]],[[3811592683283527904145155808200366192489850711742363953668998371801696238057,9032545080831535702239063467087720597970266046938395860207839433937324718536],[16308433125974933290258540904373317426123214107276055539769464205982500660715,12429982191499850873612518410809641163252887523090441166572590809691267943605],[9494885690931955877467315318223108618392113101843890678090902614660136056680,11783514256715757384821021009301806722951917744219075907912683963173706887379],[7562082660623781416745328104576133910743071878837764423695105915778139873834,17954307004260053757579194018551114133664721761483240877658498973152950708099],[19338184851116432029108109461622579541195083625346674255186169347975445785058,38361206266360048012365562393026952048730052530888439195454086987795985927],[21178537742782571863590222710872928190886000600239072595684369348717288330049,9786438258541172244884631831247223050494423968411444302812755467521949734320],[11330504221972341797183339350494223413034293674225690456356444509688810101433,1490009915387901405464437253469086864085891770312035292355706249426866485365]],[[9485639152672984144988597737758037391807993615552051606205480347442429414340,17626503110323089701269363177710295379967225765713250625279671011873619640598],[12391874700409435648975069978280047983726144854114915177376036190441913967689,18953587685067712486092665232725058638563458484886448540567142557894080640927],[21791720972262589799021600767292883644106575897307484548888696814333235336885,11092962469758788187888592619035811117815082357439060720677582048880121542623],[9418924955930663972575130074928583215922927562059194231976193350658171304436,16113558481826020406162261319744796072664750077095575593106901121115073101408],[20054934960262983176880675919444457578562219675808407582143519621873973120773,14877415271301547911435683263206245199959943680225555496786470669330176961657],[4215199263810110748751715719957184804379752373072771007598572158043965517488,5225943468606602818132879686778547605180105897615251160509064537462109826521],[6250242626034734280813142093008675407723196706248829741247204621913994561803,1472231555266678689888727724824566171966416459791722465278225775922487343641]],[[9830856103389248449121962275587399130605902703453384856543071762984116567573,11408965575174993375815840422438995549652812400401163392501956884932167624437],[11814906841949499037550820576929552248172160643991870665022770052632331265834,19969543376625663966419118899515353499678204573709836615846115182224340858492],[3047486363455933831148688762823238723024952519326207356549121929667745957778,20241836359289449005887237560564358543646542598344362915541027571505243817211],[5965631918800530319167124148627450454569264331058008407732200168631989208657,20463557477532480934514091877628554948892025887087712764683631108388998871350],[16605042322692983282732511249912403956057999815658038166796858627082222971215,12219061498275616585164456833410962809536084885494309093787669879221959361956],[1548998572074037722622224303222294716243074837074272552644853986075252666508,10393312002885367652301897874262367916506364670364584602554176742602334134772],[16180907689593358346406392015123900260925622357393826746385511046141256905390,12267326749885120640972074479210537480053065569337817484467225562817467244765]],[[15035335306919942325459417688135340085377315274625768597233474641923619728582,10090041889587324002759549286390619541526396451963494627957072069124011137562],[21342049717074059749518233491526445388158772701642182532370641230478027030319,10507786999799841055999967456762679569286329319056926475375760604262707147294],[19590996174696909242575628014943555633938195923520472786993379268302478708283,2673753072556442230312995111304911178679525806396134504594492458566941824354],[13411253172375451489380472831999887223592471057462692619008484995624281735092,17181767455563581254432161119660408482332423481128600038352147258951772423229],[19138864631164378176055647711995352935065134904103255748190268290992108588628,14282526277736365863821375748687709839392307698935143595732632710176778519757],[20183773658676161990469276414858234178608794783112866811307579993999118293429,5223464433544489066271184294750886227362580875255044558831927430970236355539],[12333466991139269670298178539679773509487545471126920233507132846828588847444,3787586478923104354547687861486563468235879611952775292288436085429794222238]],[[15718373132479769904443326381037437528372212185108294117696143473979328398658,43456740675249348549891878341522275183186932745162972528932808393415299552],[11236864934894600819960883124570686936554376109344998527334431594565774237827,4289247401578837038775845192875793775418122783738936298355403103074020081838],[18580370382199518848261939652153768394883698461842792002922164533882262019935,20516185953882700254387267244708111605796661864845495645678049276372075842359],[20041291712709610738573661974551517833120775539593003477018637287434210072702,6326630253906616820412999166182553773360987412889775567442543181359104720511],[13268971611130152315428629919012388924225656285593904211561391821918930327614,9247437189452353488017802041158840512956111558640958728149597697508914590433],[6267384495557139339708615182113725421733376438932580472141549274050146739549,1832264154031452148715318442722960696977572389206897240030908464579133134237],[16650684165487873559901140599157559153018449083939294496255590830891994564285,14140282729498011406186082176268025578697081678243955538935501306868500498994]],[[1723458149089715907994189658689343304709709060535625667210252753337752162173,4023016874169005249382064394379671330447496454371261692205411970999350949293],[7651670126664625790835334090273463062538865895183205964669372719235003083565,17710652158212212080502343565075513548898593397103675832636832371532093744857],[4247947150009812467217672970806328247513830308400387953244764907353849211641,14500381439127180474801393438175928191199696177607750163263715436006533630877],[21213779524495874664157797605662894019112036728653622806607467354233012380232,1429370857470083395421401524518861545167550347090873730934256398864585069083],[12465277751642747637430517396067173985821959773399832969105187923427872239200,4377704428607835904642653580543541241155601291484645500691968624389522190030],[11283027832501128633761619552392013253304972822086786857121687098087331014745,21463394238922953607096052056881931791797740737164052798044623278557203313720],[19687293493101130967741578773742597470558958652351513582962108464055656171331,4445165696525061401582979300506082669540223774145877762689724631935313716632]],[[745924679191739894055143748466112994378439645681039136007774787076115375124,13132169670125192016391258838554965176628317453468870968867717287446623320643],[2126777833939378028304266129616145667925849332481755567268747182629795296580,20909608709868730010029182074820840312550443752829480953667886902663547957991],[3388767735894417381503201756905214431625081913405504580464345986403824999889,21014112837214011009096825602791072748195337199912773858499588477762724153070],[10521317016331497094903116740581271122844131442882845700567581775404872949272,13201921794561774338466680421903602920184688290946713194187958007088351657367],[16170260722059932609965743383032703380650557609693540121262881902248073364496,6004983491336500911294872035126141746032033211872472427212274143945425740617],[10275615677574391293596971122111363003313434841806630200532546038183081960924,5955568702561336410725734958627459212680756023420452791680213386065159525989],[19059081014385850734732058652137664919364805650872154944590269874395511868415,19202365837673729366500417038229950532560250566916189579621883380623278182155]],[[4553625243522856553165922942982108474187282402890756796515747778282922584601,16835654219229187428071649241190746119082269636345872682107941472241044260584],[3272293478534046729728233267765357195255129499603632413158978822084188871854,873742823867191038535544062852920538566418819521732785500614249239215175476],[7856986171681248404396064225772749784181602218562773063185003409958949630985,11707218736744382138692483591389641607570557654489363179025201039696228471230],[2902255937308264958973169948617099471543255757887963647238093192858290079050,4092153880227661899721872164083575597602963673456107552146583620177664115673],[18380478859138320895837407377103009470968863533040661874531861881638854174636,14502773952184441371657781525836310753176308880224816843041318743809785835984],[2781117248053224106149213822307598926495461873135153638774638501111353469325,3500056595279027698683405880585654897391289317486204483344715855049598477604],[8880120765926282932795149634761705738498809569874317407549203808931092257005,19080036326648068547894941015038877788526324720587349784852594495705578761000]],[[7252337675475138150830402909353772156046809729627064992143762325769537840623,7601443214415704135008588588192028557655441716696726549510699770097979655628],[436607343827794507835462908831699962173244647704538949914686722631806931932,18500126298578278987997086114400065402270866280547473913420536595663876273004],[18427701611614193839908361166447988195308352665132182219164437649866377475111,5299493942596042045861137432338955179078182570752746487573709678936617478454],[4188155714164125069834512529839479682516489319499446390214266838952761728656,2720966082507704094346897998659841489771837229143573083003847010258396944787],[13256461570028177373135283778770729308216900804505379897951455548375840027026,10722074030307391322177899534114921764931623271723882054692012663305322382747],[9824147497244652955949696442395586567974424828238608972020527958186701134273,15755269950882650791869946186461432242513999576056199368058858215068920022191],[21172488506061181949536573476893375313339715931330476837156243346077173297265,13892434487977776248366965108031841947713544939953824768291380177301871559945]],[[10202326166286888893675634318107715186834588694714750762952081034135561546271,15028154694713144242204861571552635520290993855826554325002991692907421516918],[18486039841380105976272577521609866666900576498507352937328726490052296469859,12766289885372833812620582632847872978085960777075662988932200910695848591357],[1452272927738590248356371174422184656932731110936062990115610832462181634644,3608050114233210789542189629343107890943266759827387991788718454179833288695],[14798240452388909327945424685903532333765637883272751382037716636327236955001,10773894897711848209682368488916121016695006898681985691467605219098835500201],[17204267933132009093604099819536245144503489322639121825381131096467570698650,7704298975420304156332734115679983371345754866278811368869074990486717531131],[8060465662017324080560848316478407038163145149983639907596180500095598669247,20475082166427284188002500222093571716651248980245637602667562336751029856573],[7457566682692308112726332096733260585025339741083447785327706250123165087868,11904519443874922292602150685069370036383697877657723976244907400392778002614]],[[14930624777162656776068112402283260602512252179767747308433194885322661150422,13682963731073238132274278610660469286329368216526659590944079211949686450402],[18705481657148807016785305378773304476425591636333098330324049960258682574070,21315724107376627085778492378001676935454590984229146391746301404292016287653],[12628427235010608529869146871556870477182704310235373946877240509680742038961,15093298104438768585559335868663959710321348106117735180051519837845319121254],[6593907467779318957599440584793099005109789224774644007604434924706249001015,18549596630007199540674697114946251030815675677713256327810772799104711621483],[6271101737045248834759003849256661059806617144229427987717476992610974162336,355748132218964841305454070022507122319085542484477110563322753565651576458],[2116139772133141967317791473319540620104888687412078412336248003979594158546,4004400204967325849492155713520296687406035356901102254880522534085890616486],[4206647028595764233995379982714022410660284578620723510907006350595207905228,19380634286337609988098517090003334645113675227742745065381519159322795845003]],[[12315240965742683516581565369496371929586281338862761742109651525191835544242,18994803742708336446369128568423705404354655742604689352630273180469431952708],[18019403342409608922812569436317484250134945386869657285229378095251425778096,12707009780301102830224094192984906206920666691015255692741008594808694787917],[2592407181901686208061988776764501828311271519595797153264758207470081204331,11847594161160074962679125411562687287595382335410213641115001866587988494499],[3346927026869562921166545684451290646273836362895645367665514203662899621366,15758185693543979820528128025093553492246135914029575732836221618882836493143],[20528686657810499188368147206002308531447185877994439397529705707372170337045,18025396678079701612906003769476076600196287001844168390936182972248852818155],[9799815250059685769827017947834627563597884023490186073806184882963949644596,4998495094322372762314630336611134866447406022687118703953312157819349892603],[16176535527670849161173306151058200762642157343823553073439957507563856439772,21877331533292960470552563236986670222564955589137303622102707801351340670855]]];</span>
+  18 |     | <span class='neutral'></span>
+  19 |     | <span class='neutral'>    /// @dev See {ISemaphoreVerifier-verifyProof}.</span>
+  20 |     | <span class='unexecuted'>    function verifyProof(</span>
+  21 |     | <span class='neutral'>        uint256 merkleTreeRoot,</span>
+  22 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+  23 |     | <span class='neutral'>        uint256 signal,</span>
+  24 |     | <span class='neutral'>        uint256 externalNullifier,</span>
+  25 |     | <span class='neutral'>        uint256[8] calldata proof,</span>
+  26 |     | <span class='neutral'>        uint256 merkleTreeDepth</span>
+  27 |     | <span class='neutral'>    ) external view override {</span>
+  28 |     | <span class='unexecuted'>        signal = _hash(signal);</span>
+  29 |     | <span class='unexecuted'>        externalNullifier = _hash(externalNullifier);</span>
+  30 |     | <span class='neutral'></span>
+  31 |     | <span class='unexecuted'>        Proof memory p;</span>
+  32 |     | <span class='neutral'></span>
+  33 |     | <span class='unexecuted'>        p.A = Pairing.G1Point(proof[0], proof[1]);</span>
+  34 |     | <span class='unexecuted'>        p.B = Pairing.G2Point([proof[2], proof[3]], [proof[4], proof[5]]);</span>
+  35 |     | <span class='unexecuted'>        p.C = Pairing.G1Point(proof[6], proof[7]);</span>
+  36 |     | <span class='neutral'></span>
+  37 |     | <span class='unexecuted'>        VerificationKey memory vk = _getVerificationKey(merkleTreeDepth - 16);</span>
+  38 |     | <span class='neutral'></span>
+  39 |     | <span class='unexecuted'>        Pairing.G1Point memory vk_x = vk.IC[0];</span>
+  40 |     | <span class='neutral'></span>
+  41 |     | <span class='unexecuted'>        vk_x = Pairing.addition(vk_x, Pairing.scalar_mul(vk.IC[1], merkleTreeRoot));</span>
+  42 |     | <span class='unexecuted'>        vk_x = Pairing.addition(vk_x, Pairing.scalar_mul(vk.IC[2], nullifierHash));</span>
+  43 |     | <span class='unexecuted'>        vk_x = Pairing.addition(vk_x, Pairing.scalar_mul(vk.IC[3], signal));</span>
+  44 |     | <span class='unexecuted'>        vk_x = Pairing.addition(vk_x, Pairing.scalar_mul(vk.IC[4], externalNullifier));</span>
+  45 |     | <span class='neutral'></span>
+  46 |     | <span class='unexecuted'>        Pairing.G1Point[] memory p1 = new Pairing.G1Point[](4);</span>
+  47 |     | <span class='unexecuted'>        Pairing.G2Point[] memory p2 = new Pairing.G2Point[](4);</span>
+  48 |     | <span class='neutral'></span>
+  49 |     | <span class='unexecuted'>        p1[0] = Pairing.negate(p.A);</span>
+  50 |     | <span class='unexecuted'>        p2[0] = p.B;</span>
+  51 |     | <span class='unexecuted'>        p1[1] = vk.alfa1;</span>
+  52 |     | <span class='unexecuted'>        p2[1] = vk.beta2;</span>
+  53 |     | <span class='unexecuted'>        p1[2] = vk_x;</span>
+  54 |     | <span class='unexecuted'>        p2[2] = vk.gamma2;</span>
+  55 |     | <span class='unexecuted'>        p1[3] = p.C;</span>
+  56 |     | <span class='unexecuted'>        p2[3] = vk.delta2;</span>
+  57 |     | <span class='neutral'></span>
+  58 |     | <span class='unexecuted'>        Pairing.pairingCheck(p1, p2);</span>
+  59 |     | <span class='neutral'>    }</span>
+  60 |     | <span class='neutral'></span>
+  61 |     | <span class='neutral'>    /// @dev Creates the verification key for a specific Merkle tree depth.</span>
+  62 |     | <span class='neutral'>    /// @param vkPointsIndex: Index of the verification key points.</span>
+  63 |     | <span class='neutral'>    /// @return Verification key.</span>
+  64 |     | <span class='unexecuted'>    function _getVerificationKey(uint256 vkPointsIndex) private view returns (VerificationKey memory) {</span>
+  65 |     | <span class='unexecuted'>        VerificationKey memory vk;</span>
+  66 |     | <span class='neutral'></span>
+  67 |     | <span class='unexecuted'>        vk.alfa1 = Pairing.G1Point(</span>
+  68 |     | <span class='unexecuted'>            20491192805390485299153009773594534940189261866228447918068658471970481763042,</span>
+  69 |     | <span class='unexecuted'>            9383485363053290200918347156157836566562967994039712273449902621266178545958</span>
+  70 |     | <span class='neutral'>        );</span>
+  71 |     | <span class='neutral'></span>
+  72 |     | <span class='unexecuted'>        vk.beta2 = Pairing.G2Point(</span>
+  73 |     | <span class='neutral'>            [</span>
+  74 |     | <span class='unexecuted'>                4252822878758300859123897981450591353533073413197771768651442665752259397132,</span>
+  75 |     | <span class='unexecuted'>                6375614351688725206403948262868962793625744043794305715222011528459656738731</span>
+  76 |     | <span class='neutral'>            ],</span>
+  77 |     | <span class='neutral'>            [</span>
+  78 |     | <span class='unexecuted'>                21847035105528745403288232691147584728191162732299865338377159692350059136679,</span>
+  79 |     | <span class='unexecuted'>                10505242626370262277552901082094356697409835680220590971873171140371331206856</span>
+  80 |     | <span class='neutral'>            ]</span>
+  81 |     | <span class='neutral'>        );</span>
+  82 |     | <span class='neutral'></span>
+  83 |     | <span class='unexecuted'>        vk.gamma2 = Pairing.G2Point(</span>
+  84 |     | <span class='neutral'>            [</span>
+  85 |     | <span class='unexecuted'>                11559732032986387107991004021392285783925812861821192530917403151452391805634,</span>
+  86 |     | <span class='unexecuted'>                10857046999023057135944570762232829481370756359578518086990519993285655852781</span>
+  87 |     | <span class='neutral'>            ],</span>
+  88 |     | <span class='neutral'>            [</span>
+  89 |     | <span class='unexecuted'>                4082367875863433681332203403145435568316851327593401208105741076214120093531,</span>
+  90 |     | <span class='unexecuted'>                8495653923123431417604973247489272438418190587263600148770280649306958101930</span>
+  91 |     | <span class='neutral'>            ]</span>
+  92 |     | <span class='neutral'>        );</span>
+  93 |     | <span class='neutral'></span>
+  94 |     | <span class='unexecuted'>        vk.delta2 = Pairing.G2Point(VK_POINTS[vkPointsIndex][0], VK_POINTS[vkPointsIndex][1]);</span>
+  95 |     | <span class='neutral'></span>
+  96 |     | <span class='unexecuted'>        vk.IC = new Pairing.G1Point[](5);</span>
+  97 |     | <span class='neutral'></span>
+  98 |     | <span class='unexecuted'>        vk.IC[0] = Pairing.G1Point(VK_POINTS[vkPointsIndex][2][0], VK_POINTS[vkPointsIndex][2][1]);</span>
+  99 |     | <span class='unexecuted'>        vk.IC[1] = Pairing.G1Point(VK_POINTS[vkPointsIndex][3][0], VK_POINTS[vkPointsIndex][3][1]);</span>
+ 100 |     | <span class='unexecuted'>        vk.IC[2] = Pairing.G1Point(VK_POINTS[vkPointsIndex][4][0], VK_POINTS[vkPointsIndex][4][1]);</span>
+ 101 |     | <span class='unexecuted'>        vk.IC[3] = Pairing.G1Point(VK_POINTS[vkPointsIndex][5][0], VK_POINTS[vkPointsIndex][5][1]);</span>
+ 102 |     | <span class='unexecuted'>        vk.IC[4] = Pairing.G1Point(VK_POINTS[vkPointsIndex][6][0], VK_POINTS[vkPointsIndex][6][1]);</span>
+ 103 |     | <span class='neutral'></span>
+ 104 |     | <span class='unexecuted'>        return vk;</span>
+ 105 |     | <span class='neutral'>    }</span>
+ 106 |     | <span class='neutral'></span>
+ 107 |     | <span class='neutral'>    /// @dev Creates a keccak256 hash of a message compatible with the SNARK scalar modulus.</span>
+ 108 |     | <span class='neutral'>    /// @param message: Message to be hashed.</span>
+ 109 |     | <span class='neutral'>    /// @return Message digest.</span>
+ 110 |     | <span class='unexecuted'>    function _hash(uint256 message) private pure returns (uint256) {</span>
+ 111 |     | <span class='unexecuted'>        return uint256(keccak256(abi.encodePacked(message))) &gt;&gt; 8;</span>
+ 112 |     | <span class='neutral'>    }</span>
+ 113 |     | <span class='neutral'>}</span>
+ 114 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/echidna/TestSemaphore.sol</b>
+<code>
+  1 |     | <span class='neutral'>// SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='neutral'>import &quot;../Semaphore.sol&quot;;</span>
+  5 |     | <span class='neutral'>import &quot;../base/SemaphoreVerifier.sol&quot;;</span>
+  6 |     | <span class='neutral'>import &quot;../interfaces/ISemaphoreVerifier.sol&quot;;</span>
+  7 | *r  | <span class='executed'></span>
+  8 |     | <span class='neutral'>contract TestSemaphore {</span>
+  9 |     | <span class='neutral'>    Semaphore sp;</span>
+ 10 |     | <span class='neutral'>    uint256[] members;</span>
+ 11 |     | <span class='neutral'>    mapping(uint256 =&gt; bool) memberStatus;</span>
+ 12 |     | <span class='neutral'></span>
+ 13 |     | <span class='unexecuted'>    constructor () {</span>
+ 14 |     | <span class='unexecuted'>        SemaphoreVerifier spv = new SemaphoreVerifier();</span>
+ 15 |     | <span class='unexecuted'>        sp = new Semaphore(ISemaphoreVerifier(address(spv)));</span>
+ 16 |     | <span class='unexecuted'>        sp.createGroup(0, 16, 0, address(this));</span>
+ 17 |     | <span class='neutral'>    }</span>
+ 18 |     | <span class='neutral'></span>
+ 19 | *r  | <span class='executed'>    function addMember(uint256 identityCommitment) public {</span>
+ 20 | *r  | <span class='executed'>        sp.addMember(0, identityCommitment);</span>
+ 21 | *   | <span class='executed'>        members.push(identityCommitment);</span>
+ 22 | *   | <span class='executed'>        memberStatus[identityCommitment] = true;</span>
+ 23 |     | <span class='neutral'>    }</span>
+ 24 |     | <span class='neutral'></span>
+ 25 | *r  | <span class='executed'>    function updateMember(uint256 identityCommitment, uint256 newIdentityCommitment) public {</span>
+ 26 | *r  | <span class='executed'>        uint256 depth = sp.getMerkleTreeDepth(0);</span>
+ 27 | *r  | <span class='executed'>        uint256[] memory proofSiblings = new uint256[](depth);</span>
+ 28 | *r  | <span class='executed'>        uint8[] memory proofPathIndices = new uint8[](depth);</span>
+ 29 | *r  | <span class='executed'>        sp.updateMember(0, identityCommitment, newIdentityCommitment, proofSiblings, proofPathIndices);</span>
+ 30 | *   | <span class='executed'>        memberStatus[identityCommitment] = false;</span>
+ 31 | *   | <span class='executed'>        members.push(newIdentityCommitment);</span>
+ 32 | *   | <span class='executed'>        memberStatus[newIdentityCommitment] = true;</span>
+ 33 |     | <span class='neutral'>    }</span>
+ 34 |     | <span class='neutral'></span>
+ 35 | *r  | <span class='executed'>    function removeMember(uint256 identityCommitment) public {</span>
+ 36 | *r  | <span class='executed'>        uint256 depth = sp.getMerkleTreeDepth(0);</span>
+ 37 | *r  | <span class='executed'>        uint256[] memory proofSiblings = new uint256[](depth);</span>
+ 38 | *r  | <span class='executed'>        uint8[] memory proofPathIndices = new uint8[](depth);</span>
+ 39 | *r  | <span class='executed'>        sp.removeMember(0, identityCommitment, proofSiblings, proofPathIndices);</span>
+ 40 | *   | <span class='executed'>        memberStatus[identityCommitment] = false;</span>
+ 41 |     | <span class='neutral'>    }</span>
+ 42 |     | <span class='neutral'></span>
+ 43 |     | <span class='unexecuted'>    function echidna_commitement_size() public returns (bool) {</span>
+ 44 |     | <span class='unexecuted'>        uint256 depth = sp.getMerkleTreeDepth(0);</span>
+ 45 |     | <span class='unexecuted'>        uint256[] memory proofSiblings = new uint256[](depth);</span>
+ 46 |     | <span class='unexecuted'>        uint8[] memory proofPathIndices = new uint8[](depth);</span>
+ 47 |     | <span class='neutral'>        </span>
+ 48 |     | <span class='unexecuted'>        uint256[] memory m = members;</span>
+ 49 |     | <span class='unexecuted'>        uint256 ml = m.length;</span>
+ 50 |     | <span class='unexecuted'>        for (uint256 j=0; j &lt; ml; ++j) {</span>
+ 51 |     | <span class='unexecuted'>            if (memberStatus[m[j]]) {</span>
+ 52 |     | <span class='unexecuted'>                try sp.removeMember(0, m[j], proofSiblings, proofPathIndices) {</span>
+ 53 |     | <span class='neutral'>                    continue;</span>
+ 54 |     | <span class='unexecuted'>                } catch Error(string memory reason) {</span>
+ 55 |     | <span class='neutral'>                    // return false;</span>
+ 56 |     | <span class='unexecuted'>                    if (keccak256(abi.encode(reason)) == keccak256(abi.encode(&quot;IncrementalBinaryTree: leaf must be &lt; SNARK_SCALAR_FIELD&quot;))) {</span>
+ 57 |     | <span class='unexecuted'>                        return false;</span>
+ 58 |     | <span class='neutral'>                    }</span>
+ 59 |     | <span class='neutral'>                }</span>
+ 60 |     | <span class='neutral'>            }</span>
+ 61 |     | <span class='neutral'>        }</span>
+ 62 |     | <span class='unexecuted'>        return true;</span>
+ 63 |     | <span class='neutral'>    }</span>
+ 64 |     | <span class='neutral'>}</span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/extensions/SemaphoreVoting.sol</b>
+<code>
+   1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+   2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+   3 |     | <span class='neutral'></span>
+   4 |     | <span class='neutral'>import &quot;../interfaces/ISemaphoreVoting.sol&quot;;</span>
+   5 |     | <span class='neutral'>import &quot;../interfaces/ISemaphoreVerifier.sol&quot;;</span>
+   6 |     | <span class='neutral'>import &quot;../base/SemaphoreGroups.sol&quot;;</span>
+   7 |     | <span class='neutral'></span>
+   8 |     | <span class='neutral'>/// @title Semaphore voting contract.</span>
+   9 |     | <span class='unexecuted'>/// @dev The following code allows you to create polls, add voters and allow them to vote anonymously.</span>
+  10 |     | <span class='neutral'>contract SemaphoreVoting is ISemaphoreVoting, SemaphoreGroups {</span>
+  11 |     | <span class='unexecuted'>    ISemaphoreVerifier public verifier;</span>
+  12 |     | <span class='neutral'></span>
+  13 |     | <span class='neutral'>    /// @dev Gets a poll id and returns the poll data.</span>
+  14 |     | <span class='neutral'>    mapping(uint256 =&gt; Poll) internal polls;</span>
+  15 |     | <span class='neutral'></span>
+  16 |     | <span class='neutral'>    /// @dev Gets a nullifier hash and returns true or false.</span>
+  17 |     | <span class='neutral'>    /// It is used to prevent double-voting.</span>
+  18 |     | <span class='neutral'>    mapping(uint256 =&gt; bool) internal nullifierHashes;</span>
+  19 |     | <span class='neutral'></span>
+  20 |     | <span class='neutral'>    /// @dev Checks if the poll coordinator is the transaction sender.</span>
+  21 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+  22 |     | <span class='neutral'>    modifier onlyCoordinator(uint256 pollId) {</span>
+  23 |     | <span class='unexecuted'>        if (polls[pollId].coordinator != _msgSender()) {</span>
+  24 |     | <span class='unexecuted'>            revert Semaphore__CallerIsNotThePollCoordinator();</span>
+  25 |     | <span class='neutral'>        }</span>
+  26 |     | <span class='neutral'></span>
+  27 |     | <span class='neutral'>        _;</span>
+  28 |     | <span class='neutral'>    }</span>
+  29 |     | <span class='neutral'></span>
+  30 |     | <span class='neutral'>    /// @dev Initializes the Semaphore verifier used to verify the user&#39;s ZK proofs.</span>
+  31 |     | <span class='neutral'>    /// @param _verifier: Semaphore verifier address.</span>
+  32 |     | <span class='unexecuted'>    constructor(ISemaphoreVerifier _verifier) {</span>
+  33 |     | <span class='unexecuted'>        verifier = _verifier;</span>
+  34 |     | <span class='neutral'>    }</span>
+  35 |     | <span class='neutral'></span>
+  36 |     | <span class='neutral'>    /// @dev See {ISemaphoreVoting-createPoll}.</span>
+  37 |     | <span class='unexecuted'>    function createPoll(</span>
+  38 |     | <span class='neutral'>        uint256 pollId,</span>
+  39 |     | <span class='neutral'>        address coordinator,</span>
+  40 |     | <span class='neutral'>        uint256 merkleTreeDepth</span>
+  41 |     | <span class='neutral'>    ) public override {</span>
+  42 |     | <span class='unexecuted'>        if (merkleTreeDepth &lt; 16 || merkleTreeDepth &gt; 32) {</span>
+  43 |     | <span class='unexecuted'>            revert Semaphore__MerkleTreeDepthIsNotSupported();</span>
+  44 |     | <span class='neutral'>        }</span>
+  45 |     | <span class='neutral'></span>
+  46 |     | <span class='unexecuted'>        _createGroup(pollId, merkleTreeDepth, 0);</span>
+  47 |     | <span class='neutral'></span>
+  48 |     | <span class='neutral'>        Poll memory poll;</span>
+  49 |     | <span class='neutral'></span>
+  50 |     | <span class='unexecuted'>        poll.coordinator = coordinator;</span>
+  51 |     | <span class='neutral'></span>
+  52 |     | <span class='unexecuted'>        polls[pollId] = poll;</span>
+  53 |     | <span class='neutral'></span>
+  54 |     | <span class='unexecuted'>        emit PollCreated(pollId, coordinator);</span>
+  55 |     | <span class='neutral'>    }</span>
+  56 |     | <span class='neutral'></span>
+  57 |     | <span class='neutral'>    /// @dev See {ISemaphoreVoting-addVoter}.</span>
+  58 |     | <span class='unexecuted'>    function addVoter(uint256 pollId, uint256 identityCommitment) public override onlyCoordinator(pollId) {</span>
+  59 |     | <span class='unexecuted'>        if (polls[pollId].state != PollState.Created) {</span>
+  60 |     | <span class='unexecuted'>            revert Semaphore__PollHasAlreadyBeenStarted();</span>
+  61 |     | <span class='neutral'>        }</span>
+  62 |     | <span class='neutral'></span>
+  63 |     | <span class='unexecuted'>        _addMember(pollId, identityCommitment);</span>
+  64 |     | <span class='neutral'>    }</span>
+  65 |     | <span class='neutral'></span>
+  66 |     | <span class='neutral'>    /// @dev See {ISemaphoreVoting-addVoter}.</span>
+  67 |     | <span class='unexecuted'>    function startPoll(uint256 pollId, uint256 encryptionKey) public override onlyCoordinator(pollId) {</span>
+  68 |     | <span class='unexecuted'>        if (polls[pollId].state != PollState.Created) {</span>
+  69 |     | <span class='unexecuted'>            revert Semaphore__PollHasAlreadyBeenStarted();</span>
+  70 |     | <span class='neutral'>        }</span>
+  71 |     | <span class='neutral'></span>
+  72 |     | <span class='unexecuted'>        polls[pollId].state = PollState.Ongoing;</span>
+  73 |     | <span class='neutral'></span>
+  74 |     | <span class='unexecuted'>        emit PollStarted(pollId, _msgSender(), encryptionKey);</span>
+  75 |     | <span class='neutral'>    }</span>
+  76 |     | <span class='neutral'></span>
+  77 |     | <span class='neutral'>    /// @dev See {ISemaphoreVoting-castVote}.</span>
+  78 |     | <span class='unexecuted'>    function castVote(</span>
+  79 |     | <span class='neutral'>        uint256 vote,</span>
+  80 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+  81 |     | <span class='neutral'>        uint256 pollId,</span>
+  82 |     | <span class='neutral'>        uint256[8] calldata proof</span>
+  83 |     | <span class='neutral'>    ) public override {</span>
+  84 |     | <span class='unexecuted'>        Poll memory poll = polls[pollId];</span>
+  85 |     | <span class='neutral'></span>
+  86 |     | <span class='unexecuted'>        if (poll.state != PollState.Ongoing) {</span>
+  87 |     | <span class='unexecuted'>            revert Semaphore__PollIsNotOngoing();</span>
+  88 |     | <span class='neutral'>        }</span>
+  89 |     | <span class='neutral'></span>
+  90 |     | <span class='unexecuted'>        if (nullifierHashes[nullifierHash]) {</span>
+  91 |     | <span class='unexecuted'>            revert Semaphore__YouAreUsingTheSameNillifierTwice();</span>
+  92 |     | <span class='neutral'>        }</span>
+  93 |     | <span class='neutral'></span>
+  94 |     | <span class='unexecuted'>        uint256 merkleTreeDepth = getMerkleTreeDepth(pollId);</span>
+  95 |     | <span class='neutral'>        uint256 merkleTreeRoot = getMerkleTreeRoot(pollId);</span>
+  96 |     | <span class='neutral'></span>
+  97 |     | <span class='unexecuted'>        verifier.verifyProof(merkleTreeRoot, nullifierHash, vote, pollId, proof, merkleTreeDepth);</span>
+  98 |     | <span class='neutral'></span>
+  99 |     | <span class='unexecuted'>        nullifierHashes[nullifierHash] = true;</span>
+ 100 |     | <span class='neutral'></span>
+ 101 |     | <span class='unexecuted'>        emit VoteAdded(pollId, vote);</span>
+ 102 |     | <span class='neutral'>    }</span>
+ 103 |     | <span class='neutral'></span>
+ 104 |     | <span class='neutral'>    /// @dev See {ISemaphoreVoting-publishDecryptionKey}.</span>
+ 105 |     | <span class='unexecuted'>    function endPoll(uint256 pollId, uint256 decryptionKey) public override onlyCoordinator(pollId) {</span>
+ 106 |     | <span class='unexecuted'>        if (polls[pollId].state != PollState.Ongoing) {</span>
+ 107 |     | <span class='unexecuted'>            revert Semaphore__PollIsNotOngoing();</span>
+ 108 |     | <span class='neutral'>        }</span>
+ 109 |     | <span class='neutral'></span>
+ 110 |     | <span class='unexecuted'>        polls[pollId].state = PollState.Ended;</span>
+ 111 |     | <span class='neutral'></span>
+ 112 |     | <span class='unexecuted'>        emit PollEnded(pollId, _msgSender(), decryptionKey);</span>
+ 113 |     | <span class='neutral'>    }</span>
+ 114 |     | <span class='neutral'>}</span>
+ 115 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/extensions/SemaphoreWhistleblowing.sol</b>
+<code>
+  1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='neutral'>import &quot;../interfaces/ISemaphoreWhistleblowing.sol&quot;;</span>
+  5 |     | <span class='neutral'>import &quot;../interfaces/ISemaphoreVerifier.sol&quot;;</span>
+  6 |     | <span class='neutral'>import &quot;../base/SemaphoreGroups.sol&quot;;</span>
+  7 |     | <span class='neutral'></span>
+  8 |     | <span class='neutral'>/// @title Semaphore whistleblowing contract.</span>
+  9 |     | <span class='neutral'>/// @dev The following code allows you to create entities for whistleblowers (e.g. non-profit</span>
+ 10 |     | <span class='neutral'>/// organization, newspaper) and to allow them to publish news leaks anonymously.</span>
+ 11 |     | <span class='unexecuted'>/// Leaks can be IPFS hashes, permanent links or other kinds of reference.</span>
+ 12 |     | <span class='neutral'>contract SemaphoreWhistleblowing is ISemaphoreWhistleblowing, SemaphoreGroups {</span>
+ 13 |     | <span class='unexecuted'>    ISemaphoreVerifier public verifier;</span>
+ 14 |     | <span class='neutral'></span>
+ 15 |     | <span class='neutral'>    /// @dev Gets an editor address and return their entity.</span>
+ 16 |     | <span class='neutral'>    mapping(address =&gt; uint256) private entities;</span>
+ 17 |     | <span class='neutral'></span>
+ 18 |     | <span class='neutral'>    /// @dev Checks if the editor is the transaction sender.</span>
+ 19 |     | <span class='neutral'>    /// @param entityId: Id of the entity.</span>
+ 20 |     | <span class='neutral'>    modifier onlyEditor(uint256 entityId) {</span>
+ 21 |     | <span class='unexecuted'>        if (entityId != entities[_msgSender()]) {</span>
+ 22 |     | <span class='unexecuted'>            revert Semaphore__CallerIsNotTheEditor();</span>
+ 23 |     | <span class='neutral'>        }</span>
+ 24 |     | <span class='neutral'></span>
+ 25 |     | <span class='neutral'>        _;</span>
+ 26 |     | <span class='neutral'>    }</span>
+ 27 |     | <span class='neutral'></span>
+ 28 |     | <span class='neutral'>    /// @dev Initializes the Semaphore verifier used to verify the user&#39;s ZK proofs.</span>
+ 29 |     | <span class='neutral'>    /// @param _verifier: Semaphore verifier address.</span>
+ 30 |     | <span class='unexecuted'>    constructor(ISemaphoreVerifier _verifier) {</span>
+ 31 |     | <span class='unexecuted'>        verifier = _verifier;</span>
+ 32 |     | <span class='neutral'>    }</span>
+ 33 |     | <span class='neutral'></span>
+ 34 |     | <span class='neutral'>    /// @dev See {ISemaphoreWhistleblowing-createEntity}.</span>
+ 35 |     | <span class='unexecuted'>    function createEntity(</span>
+ 36 |     | <span class='neutral'>        uint256 entityId,</span>
+ 37 |     | <span class='neutral'>        address editor,</span>
+ 38 |     | <span class='neutral'>        uint256 merkleTreeDepth</span>
+ 39 |     | <span class='neutral'>    ) public override {</span>
+ 40 |     | <span class='unexecuted'>        if (merkleTreeDepth &lt; 16 || merkleTreeDepth &gt; 32) {</span>
+ 41 |     | <span class='unexecuted'>            revert Semaphore__MerkleTreeDepthIsNotSupported();</span>
+ 42 |     | <span class='neutral'>        }</span>
+ 43 |     | <span class='neutral'></span>
+ 44 |     | <span class='unexecuted'>        _createGroup(entityId, merkleTreeDepth, 0);</span>
+ 45 |     | <span class='neutral'></span>
+ 46 |     | <span class='unexecuted'>        entities[editor] = entityId;</span>
+ 47 |     | <span class='neutral'></span>
+ 48 |     | <span class='unexecuted'>        emit EntityCreated(entityId, editor);</span>
+ 49 |     | <span class='neutral'>    }</span>
+ 50 |     | <span class='neutral'></span>
+ 51 |     | <span class='neutral'>    /// @dev See {ISemaphoreWhistleblowing-addWhistleblower}.</span>
+ 52 |     | <span class='unexecuted'>    function addWhistleblower(uint256 entityId, uint256 identityCommitment) public override onlyEditor(entityId) {</span>
+ 53 |     | <span class='unexecuted'>        _addMember(entityId, identityCommitment);</span>
+ 54 |     | <span class='neutral'>    }</span>
+ 55 |     | <span class='neutral'></span>
+ 56 |     | <span class='neutral'>    /// @dev See {ISemaphoreWhistleblowing-removeWhistleblower}.</span>
+ 57 |     | <span class='unexecuted'>    function removeWhistleblower(</span>
+ 58 |     | <span class='neutral'>        uint256 entityId,</span>
+ 59 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+ 60 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 61 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 62 |     | <span class='unexecuted'>    ) public override onlyEditor(entityId) {</span>
+ 63 |     | <span class='unexecuted'>        _removeMember(entityId, identityCommitment, proofSiblings, proofPathIndices);</span>
+ 64 |     | <span class='neutral'>    }</span>
+ 65 |     | <span class='neutral'></span>
+ 66 |     | <span class='neutral'>    /// @dev See {ISemaphoreWhistleblowing-publishLeak}.</span>
+ 67 |     | <span class='unexecuted'>    function publishLeak(</span>
+ 68 |     | <span class='neutral'>        uint256 leak,</span>
+ 69 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+ 70 |     | <span class='neutral'>        uint256 entityId,</span>
+ 71 |     | <span class='neutral'>        uint256[8] calldata proof</span>
+ 72 |     | <span class='neutral'>    ) public override {</span>
+ 73 |     | <span class='unexecuted'>        uint256 merkleTreeDepth = getMerkleTreeDepth(entityId);</span>
+ 74 |     | <span class='neutral'>        uint256 merkleTreeRoot = getMerkleTreeRoot(entityId);</span>
+ 75 |     | <span class='neutral'></span>
+ 76 |     | <span class='unexecuted'>        verifier.verifyProof(merkleTreeRoot, nullifierHash, leak, entityId, proof, merkleTreeDepth);</span>
+ 77 |     | <span class='neutral'></span>
+ 78 |     | <span class='unexecuted'>        emit LeakPublished(entityId, leak);</span>
+ 79 |     | <span class='neutral'>    }</span>
+ 80 |     | <span class='neutral'>}</span>
+ 81 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/interfaces/ISemaphore.sol</b>
+<code>
+   1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+   2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+   3 |     | <span class='neutral'></span>
+   4 |     | <span class='neutral'>/// @title Semaphore interface.</span>
+   5 |     | <span class='neutral'>/// @dev Interface of a Semaphore contract.</span>
+   6 |     | <span class='neutral'>interface ISemaphore {</span>
+   7 |     | <span class='neutral'>    error Semaphore__CallerIsNotTheGroupAdmin();</span>
+   8 |     | <span class='neutral'>    error Semaphore__MerkleTreeDepthIsNotSupported();</span>
+   9 |     | <span class='neutral'>    error Semaphore__MerkleTreeRootIsExpired();</span>
+  10 |     | <span class='neutral'>    error Semaphore__MerkleTreeRootIsNotPartOfTheGroup();</span>
+  11 |     | <span class='neutral'>    error Semaphore__YouAreUsingTheSameNillifierTwice();</span>
+  12 |     | <span class='neutral'></span>
+  13 |     | <span class='neutral'>    struct Verifier {</span>
+  14 |     | <span class='neutral'>        address contractAddress;</span>
+  15 |     | <span class='neutral'>        uint256 merkleTreeDepth;</span>
+  16 |     | <span class='neutral'>    }</span>
+  17 |     | <span class='neutral'></span>
+  18 |     | <span class='neutral'>    /// It defines all the group parameters, in addition to those in the Merkle tree.</span>
+  19 |     | <span class='neutral'>    struct Group {</span>
+  20 |     | <span class='neutral'>        address admin;</span>
+  21 |     | <span class='neutral'>        uint256 merkleRootDuration;</span>
+  22 |     | <span class='neutral'>        mapping(uint256 =&gt; uint256) merkleRootCreationDates;</span>
+  23 |     | <span class='neutral'>        mapping(uint256 =&gt; bool) nullifierHashes;</span>
+  24 |     | <span class='neutral'>    }</span>
+  25 |     | <span class='neutral'></span>
+  26 |     | <span class='neutral'>    /// @dev Emitted when an admin is assigned to a group.</span>
+  27 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  28 |     | <span class='neutral'>    /// @param oldAdmin: Old admin of the group.</span>
+  29 |     | <span class='neutral'>    /// @param newAdmin: New admin of the group.</span>
+  30 |     | <span class='neutral'>    event GroupAdminUpdated(uint256 indexed groupId, address indexed oldAdmin, address indexed newAdmin);</span>
+  31 |     | <span class='neutral'></span>
+  32 |     | <span class='neutral'>    /// @dev Emitted when a Semaphore proof is verified.</span>
+  33 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  34 |     | <span class='neutral'>    /// @param merkleTreeRoot: Root of the Merkle tree.</span>
+  35 |     | <span class='neutral'>    /// @param externalNullifier: External nullifier.</span>
+  36 |     | <span class='neutral'>    /// @param nullifierHash: Nullifier hash.</span>
+  37 |     | <span class='neutral'>    /// @param signal: Semaphore signal.</span>
+  38 |     | <span class='neutral'>    event ProofVerified(</span>
+  39 |     | <span class='neutral'>        uint256 indexed groupId,</span>
+  40 |     | <span class='neutral'>        uint256 merkleTreeRoot,</span>
+  41 |     | <span class='neutral'>        uint256 externalNullifier,</span>
+  42 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+  43 |     | <span class='neutral'>        uint256 signal</span>
+  44 |     | <span class='neutral'>    );</span>
+  45 |     | <span class='neutral'></span>
+  46 |     | <span class='neutral'>    /// @dev Saves the nullifier hash to avoid double signaling and emits an event</span>
+  47 |     | <span class='neutral'>    /// if the zero-knowledge proof is valid.</span>
+  48 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  49 |     | <span class='neutral'>    /// @param merkleTreeRoot: Root of the Merkle tree.</span>
+  50 |     | <span class='neutral'>    /// @param signal: Semaphore signal.</span>
+  51 |     | <span class='neutral'>    /// @param nullifierHash: Nullifier hash.</span>
+  52 |     | <span class='neutral'>    /// @param externalNullifier: External nullifier.</span>
+  53 |     | <span class='neutral'>    /// @param proof: Zero-knowledge proof.</span>
+  54 |     | <span class='neutral'>    function verifyProof(</span>
+  55 |     | <span class='neutral'>        uint256 groupId,</span>
+  56 |     | <span class='neutral'>        uint256 merkleTreeRoot,</span>
+  57 |     | <span class='neutral'>        uint256 signal,</span>
+  58 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+  59 |     | <span class='neutral'>        uint256 externalNullifier,</span>
+  60 |     | <span class='neutral'>        uint256[8] calldata proof</span>
+  61 |     | <span class='neutral'>    ) external;</span>
+  62 |     | <span class='neutral'></span>
+  63 |     | <span class='neutral'>    /// @dev Creates a new group. Only the admin will be able to add or remove members.</span>
+  64 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  65 |     | <span class='neutral'>    /// @param depth: Depth of the tree.</span>
+  66 |     | <span class='neutral'>    /// @param zeroValue: Zero value of the tree.</span>
+  67 |     | <span class='neutral'>    /// @param admin: Admin of the group.</span>
+  68 |     | <span class='neutral'>    function createGroup(</span>
+  69 |     | <span class='neutral'>        uint256 groupId,</span>
+  70 |     | <span class='neutral'>        uint256 depth,</span>
+  71 |     | <span class='neutral'>        uint256 zeroValue,</span>
+  72 |     | <span class='neutral'>        address admin</span>
+  73 |     | <span class='neutral'>    ) external;</span>
+  74 |     | <span class='neutral'></span>
+  75 |     | <span class='neutral'>    /// @dev Creates a new group. Only the admin will be able to add or remove members.</span>
+  76 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  77 |     | <span class='neutral'>    /// @param depth: Depth of the tree.</span>
+  78 |     | <span class='neutral'>    /// @param zeroValue: Zero value of the tree.</span>
+  79 |     | <span class='neutral'>    /// @param admin: Admin of the group.</span>
+  80 |     | <span class='neutral'>    /// @param merkleTreeRootDuration: Time before the validity of a root expires.</span>
+  81 |     | <span class='neutral'>    function createGroup(</span>
+  82 |     | <span class='neutral'>        uint256 groupId,</span>
+  83 |     | <span class='neutral'>        uint256 depth,</span>
+  84 |     | <span class='neutral'>        uint256 zeroValue,</span>
+  85 |     | <span class='neutral'>        address admin,</span>
+  86 |     | <span class='neutral'>        uint256 merkleTreeRootDuration</span>
+  87 |     | <span class='neutral'>    ) external;</span>
+  88 |     | <span class='neutral'></span>
+  89 |     | <span class='neutral'>    /// @dev Updates the group admin.</span>
+  90 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  91 |     | <span class='neutral'>    /// @param newAdmin: New admin of the group.</span>
+  92 |     | <span class='neutral'>    function updateGroupAdmin(uint256 groupId, address newAdmin) external;</span>
+  93 |     | <span class='neutral'></span>
+  94 |     | <span class='neutral'>    /// @dev Adds a new member to an existing group.</span>
+  95 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+  96 |     | <span class='neutral'>    /// @param identityCommitment: New identity commitment.</span>
+  97 |     | <span class='neutral'>    function addMember(uint256 groupId, uint256 identityCommitment) external;</span>
+  98 |     | <span class='neutral'></span>
+  99 |     | <span class='neutral'>    /// @dev Adds new members to an existing group.</span>
+ 100 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+ 101 |     | <span class='neutral'>    /// @param identityCommitments: New identity commitments.</span>
+ 102 |     | <span class='neutral'>    function addMembers(uint256 groupId, uint256[] calldata identityCommitments) external;</span>
+ 103 |     | <span class='neutral'></span>
+ 104 |     | <span class='neutral'>    /// @dev Updates an identity commitment of an existing group. A proof of membership is</span>
+ 105 |     | <span class='neutral'>    /// needed to check if the node to be updated is part of the tree.</span>
+ 106 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+ 107 |     | <span class='neutral'>    /// @param identityCommitment: Existing identity commitment to be updated.</span>
+ 108 |     | <span class='neutral'>    /// @param newIdentityCommitment: New identity commitment.</span>
+ 109 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+ 110 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+ 111 |     | <span class='neutral'>    function updateMember(</span>
+ 112 |     | <span class='neutral'>        uint256 groupId,</span>
+ 113 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+ 114 |     | <span class='neutral'>        uint256 newIdentityCommitment,</span>
+ 115 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 116 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 117 |     | <span class='neutral'>    ) external;</span>
+ 118 |     | <span class='neutral'></span>
+ 119 |     | <span class='neutral'>    /// @dev Removes a member from an existing group. A proof of membership is</span>
+ 120 |     | <span class='neutral'>    /// needed to check if the node to be removed is part of the tree.</span>
+ 121 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+ 122 |     | <span class='neutral'>    /// @param identityCommitment: Identity commitment to be removed.</span>
+ 123 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+ 124 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+ 125 |     | <span class='neutral'>    function removeMember(</span>
+ 126 |     | <span class='neutral'>        uint256 groupId,</span>
+ 127 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+ 128 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 129 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 130 |     | <span class='neutral'>    ) external;</span>
+ 131 |     | <span class='neutral'>}</span>
+ 132 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/interfaces/ISemaphoreGroups.sol</b>
+<code>
+  1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='neutral'>/// @title SemaphoreGroups interface.</span>
+  5 |     | <span class='neutral'>/// @dev Interface of a SemaphoreGroups contract.</span>
+  6 |     | <span class='neutral'>interface ISemaphoreGroups {</span>
+  7 |     | <span class='neutral'>    error Semaphore__GroupDoesNotExist();</span>
+  8 |     | <span class='neutral'>    error Semaphore__GroupAlreadyExists();</span>
+  9 |     | <span class='neutral'>    error Semaphore__GroupIdIsNotLessThanSnarkScalarField();</span>
+ 10 |     | <span class='neutral'></span>
+ 11 |     | <span class='neutral'>    /// @dev Emitted when a new group is created.</span>
+ 12 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+ 13 |     | <span class='neutral'>    /// @param merkleTreeDepth: Depth of the tree.</span>
+ 14 |     | <span class='neutral'>    /// @param zeroValue: Zero value of the tree.</span>
+ 15 |     | <span class='neutral'>    event GroupCreated(uint256 indexed groupId, uint256 merkleTreeDepth, uint256 zeroValue);</span>
+ 16 |     | <span class='neutral'></span>
+ 17 |     | <span class='neutral'>    /// @dev Emitted when a new identity commitment is added.</span>
+ 18 |     | <span class='neutral'>    /// @param groupId: Group id of the group.</span>
+ 19 |     | <span class='neutral'>    /// @param index: Identity commitment index.</span>
+ 20 |     | <span class='neutral'>    /// @param identityCommitment: New identity commitment.</span>
+ 21 |     | <span class='neutral'>    /// @param merkleTreeRoot: New root hash of the tree.</span>
+ 22 |     | <span class='neutral'>    event MemberAdded(uint256 indexed groupId, uint256 index, uint256 identityCommitment, uint256 merkleTreeRoot);</span>
+ 23 |     | <span class='neutral'></span>
+ 24 |     | <span class='neutral'>    /// @dev Emitted when an identity commitment is updated.</span>
+ 25 |     | <span class='neutral'>    /// @param groupId: Group id of the group.</span>
+ 26 |     | <span class='neutral'>    /// @param index: Identity commitment index.</span>
+ 27 |     | <span class='neutral'>    /// @param identityCommitment: Existing identity commitment to be updated.</span>
+ 28 |     | <span class='neutral'>    /// @param newIdentityCommitment: New identity commitment.</span>
+ 29 |     | <span class='neutral'>    /// @param merkleTreeRoot: New root hash of the tree.</span>
+ 30 |     | <span class='neutral'>    event MemberUpdated(</span>
+ 31 |     | <span class='neutral'>        uint256 indexed groupId,</span>
+ 32 |     | <span class='neutral'>        uint256 index,</span>
+ 33 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+ 34 |     | <span class='neutral'>        uint256 newIdentityCommitment,</span>
+ 35 |     | <span class='neutral'>        uint256 merkleTreeRoot</span>
+ 36 |     | <span class='neutral'>    );</span>
+ 37 |     | <span class='neutral'></span>
+ 38 |     | <span class='neutral'>    /// @dev Emitted when a new identity commitment is removed.</span>
+ 39 |     | <span class='neutral'>    /// @param groupId: Group id of the group.</span>
+ 40 |     | <span class='neutral'>    /// @param index: Identity commitment index.</span>
+ 41 |     | <span class='neutral'>    /// @param identityCommitment: Existing identity commitment to be removed.</span>
+ 42 |     | <span class='neutral'>    /// @param merkleTreeRoot: New root hash of the tree.</span>
+ 43 |     | <span class='neutral'>    event MemberRemoved(uint256 indexed groupId, uint256 index, uint256 identityCommitment, uint256 merkleTreeRoot);</span>
+ 44 |     | <span class='neutral'></span>
+ 45 |     | <span class='neutral'>    /// @dev Returns the last root hash of a group.</span>
+ 46 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+ 47 |     | <span class='neutral'>    /// @return Root hash of the group.</span>
+ 48 |     | <span class='neutral'>    function getMerkleTreeRoot(uint256 groupId) external view returns (uint256);</span>
+ 49 |     | <span class='neutral'></span>
+ 50 |     | <span class='neutral'>    /// @dev Returns the depth of the tree of a group.</span>
+ 51 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+ 52 |     | <span class='neutral'>    /// @return Depth of the group tree.</span>
+ 53 |     | <span class='neutral'>    function getMerkleTreeDepth(uint256 groupId) external view returns (uint256);</span>
+ 54 |     | <span class='neutral'></span>
+ 55 |     | <span class='neutral'>    /// @dev Returns the number of tree leaves of a group.</span>
+ 56 |     | <span class='neutral'>    /// @param groupId: Id of the group.</span>
+ 57 |     | <span class='neutral'>    /// @return Number of tree leaves.</span>
+ 58 |     | <span class='neutral'>    function getNumberOfMerkleTreeLeaves(uint256 groupId) external view returns (uint256);</span>
+ 59 |     | <span class='neutral'>}</span>
+ 60 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/interfaces/ISemaphoreVerifier.sol</b>
+<code>
+  1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='neutral'>import &quot;../base/Pairing.sol&quot;;</span>
+  5 |     | <span class='neutral'></span>
+  6 |     | <span class='neutral'>/// @title SemaphoreVerifier interface.</span>
+  7 |     | <span class='neutral'>/// @dev Interface of SemaphoreVerifier contract.</span>
+  8 |     | <span class='neutral'>interface ISemaphoreVerifier {</span>
+  9 |     | <span class='neutral'>    struct VerificationKey {</span>
+ 10 |     | <span class='neutral'>        Pairing.G1Point alfa1;</span>
+ 11 |     | <span class='neutral'>        Pairing.G2Point beta2;</span>
+ 12 |     | <span class='neutral'>        Pairing.G2Point gamma2;</span>
+ 13 |     | <span class='neutral'>        Pairing.G2Point delta2;</span>
+ 14 |     | <span class='neutral'>        Pairing.G1Point[] IC;</span>
+ 15 |     | <span class='neutral'>    }</span>
+ 16 |     | <span class='neutral'></span>
+ 17 |     | <span class='neutral'>    struct Proof {</span>
+ 18 |     | <span class='neutral'>        Pairing.G1Point A;</span>
+ 19 |     | <span class='neutral'>        Pairing.G2Point B;</span>
+ 20 |     | <span class='neutral'>        Pairing.G1Point C;</span>
+ 21 |     | <span class='neutral'>    }</span>
+ 22 |     | <span class='neutral'></span>
+ 23 |     | <span class='neutral'>    /// @dev Verifies that the zero-knowledge proof is valid.</span>
+ 24 |     | <span class='neutral'>    /// @param merkleTreeRoot: Root of the Merkle tree.</span>
+ 25 |     | <span class='neutral'>    /// @param nullifierHash: Nullifier hash.</span>
+ 26 |     | <span class='neutral'>    /// @param signal: Semaphore signal.</span>
+ 27 |     | <span class='neutral'>    /// @param externalNullifier: External nullifier.</span>
+ 28 |     | <span class='neutral'>    /// @param proof: Zero-knowledge proof.</span>
+ 29 |     | <span class='neutral'>    /// @param merkleTreeDepth: Depth of the tree.</span>
+ 30 |     | <span class='neutral'>    function verifyProof(</span>
+ 31 |     | <span class='neutral'>        uint256 merkleTreeRoot,</span>
+ 32 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+ 33 |     | <span class='neutral'>        uint256 signal,</span>
+ 34 |     | <span class='neutral'>        uint256 externalNullifier,</span>
+ 35 |     | <span class='neutral'>        uint256[8] calldata proof,</span>
+ 36 |     | <span class='neutral'>        uint256 merkleTreeDepth</span>
+ 37 |     | <span class='neutral'>    ) external view;</span>
+ 38 |     | <span class='neutral'>}</span>
+ 39 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/interfaces/ISemaphoreVoting.sol</b>
+<code>
+  1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='neutral'>/// @title SemaphoreVoting interface.</span>
+  5 |     | <span class='neutral'>/// @dev Interface of SemaphoreVoting contract.</span>
+  6 |     | <span class='neutral'>interface ISemaphoreVoting {</span>
+  7 |     | <span class='neutral'>    error Semaphore__CallerIsNotThePollCoordinator();</span>
+  8 |     | <span class='neutral'>    error Semaphore__MerkleTreeDepthIsNotSupported();</span>
+  9 |     | <span class='neutral'>    error Semaphore__PollHasAlreadyBeenStarted();</span>
+ 10 |     | <span class='neutral'>    error Semaphore__PollIsNotOngoing();</span>
+ 11 |     | <span class='neutral'>    error Semaphore__YouAreUsingTheSameNillifierTwice();</span>
+ 12 |     | <span class='neutral'></span>
+ 13 |     | <span class='neutral'>    enum PollState {</span>
+ 14 |     | <span class='neutral'>        Created,</span>
+ 15 |     | <span class='neutral'>        Ongoing,</span>
+ 16 |     | <span class='neutral'>        Ended</span>
+ 17 |     | <span class='neutral'>    }</span>
+ 18 |     | <span class='neutral'></span>
+ 19 |     | <span class='neutral'>    struct Verifier {</span>
+ 20 |     | <span class='neutral'>        address contractAddress;</span>
+ 21 |     | <span class='neutral'>        uint256 merkleTreeDepth;</span>
+ 22 |     | <span class='neutral'>    }</span>
+ 23 |     | <span class='neutral'></span>
+ 24 |     | <span class='neutral'>    struct Poll {</span>
+ 25 |     | <span class='neutral'>        address coordinator;</span>
+ 26 |     | <span class='neutral'>        PollState state;</span>
+ 27 |     | <span class='neutral'>    }</span>
+ 28 |     | <span class='neutral'></span>
+ 29 |     | <span class='neutral'>    /// @dev Emitted when a new poll is created.</span>
+ 30 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 31 |     | <span class='neutral'>    /// @param coordinator: Coordinator of the poll.</span>
+ 32 |     | <span class='neutral'>    event PollCreated(uint256 pollId, address indexed coordinator);</span>
+ 33 |     | <span class='neutral'></span>
+ 34 |     | <span class='neutral'>    /// @dev Emitted when a poll is started.</span>
+ 35 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 36 |     | <span class='neutral'>    /// @param coordinator: Coordinator of the poll.</span>
+ 37 |     | <span class='neutral'>    /// @param encryptionKey: Key to encrypt the poll votes.</span>
+ 38 |     | <span class='neutral'>    event PollStarted(uint256 pollId, address indexed coordinator, uint256 encryptionKey);</span>
+ 39 |     | <span class='neutral'></span>
+ 40 |     | <span class='neutral'>    /// @dev Emitted when a user votes on a poll.</span>
+ 41 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 42 |     | <span class='neutral'>    /// @param vote: User encrypted vote.</span>
+ 43 |     | <span class='neutral'>    event VoteAdded(uint256 indexed pollId, uint256 vote);</span>
+ 44 |     | <span class='neutral'></span>
+ 45 |     | <span class='neutral'>    /// @dev Emitted when a poll is ended.</span>
+ 46 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 47 |     | <span class='neutral'>    /// @param coordinator: Coordinator of the poll.</span>
+ 48 |     | <span class='neutral'>    /// @param decryptionKey: Key to decrypt the poll votes.</span>
+ 49 |     | <span class='neutral'>    event PollEnded(uint256 pollId, address indexed coordinator, uint256 decryptionKey);</span>
+ 50 |     | <span class='neutral'></span>
+ 51 |     | <span class='neutral'>    /// @dev Creates a poll and the associated Merkle tree/group.</span>
+ 52 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 53 |     | <span class='neutral'>    /// @param coordinator: Coordinator of the poll.</span>
+ 54 |     | <span class='neutral'>    /// @param merkleTreeDepth: Depth of the tree.</span>
+ 55 |     | <span class='neutral'>    function createPoll(</span>
+ 56 |     | <span class='neutral'>        uint256 pollId,</span>
+ 57 |     | <span class='neutral'>        address coordinator,</span>
+ 58 |     | <span class='neutral'>        uint256 merkleTreeDepth</span>
+ 59 |     | <span class='neutral'>    ) external;</span>
+ 60 |     | <span class='neutral'></span>
+ 61 |     | <span class='neutral'>    /// @dev Adds a voter to a poll.</span>
+ 62 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 63 |     | <span class='neutral'>    /// @param identityCommitment: Identity commitment of the group member.</span>
+ 64 |     | <span class='neutral'>    function addVoter(uint256 pollId, uint256 identityCommitment) external;</span>
+ 65 |     | <span class='neutral'></span>
+ 66 |     | <span class='neutral'>    /// @dev Starts a pull and publishes the key to encrypt the votes.</span>
+ 67 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 68 |     | <span class='neutral'>    /// @param encryptionKey: Key to encrypt poll votes.</span>
+ 69 |     | <span class='neutral'>    function startPoll(uint256 pollId, uint256 encryptionKey) external;</span>
+ 70 |     | <span class='neutral'></span>
+ 71 |     | <span class='neutral'>    /// @dev Casts an anonymous vote in a poll.</span>
+ 72 |     | <span class='neutral'>    /// @param vote: Encrypted vote.</span>
+ 73 |     | <span class='neutral'>    /// @param nullifierHash: Nullifier hash.</span>
+ 74 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 75 |     | <span class='neutral'>    /// @param proof: Private zk-proof parameters.</span>
+ 76 |     | <span class='neutral'>    function castVote(</span>
+ 77 |     | <span class='neutral'>        uint256 vote,</span>
+ 78 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+ 79 |     | <span class='neutral'>        uint256 pollId,</span>
+ 80 |     | <span class='neutral'>        uint256[8] calldata proof</span>
+ 81 |     | <span class='neutral'>    ) external;</span>
+ 82 |     | <span class='neutral'></span>
+ 83 |     | <span class='neutral'>    /// @dev Ends a pull and publishes the key to decrypt the votes.</span>
+ 84 |     | <span class='neutral'>    /// @param pollId: Id of the poll.</span>
+ 85 |     | <span class='neutral'>    /// @param decryptionKey: Key to decrypt poll votes.</span>
+ 86 |     | <span class='neutral'>    function endPoll(uint256 pollId, uint256 decryptionKey) external;</span>
+ 87 |     | <span class='neutral'>}</span>
+ 88 |     | <span class='neutral'></span>
+
+</code>
+<br />
+
+<b>/home/tarun/work/contri/fuzz-vs-fv/semaphore/src/interfaces/ISemaphoreWhistleblowing.sol</b>
+<code>
+  1 |     | <span class='neutral'>//SPDX-License-Identifier: MIT</span>
+  2 |     | <span class='neutral'>pragma solidity 0.8.4;</span>
+  3 |     | <span class='neutral'></span>
+  4 |     | <span class='neutral'>/// @title SemaphoreWhistleblowing interface.</span>
+  5 |     | <span class='neutral'>/// @dev Interface of SemaphoreWhistleblowing contract.</span>
+  6 |     | <span class='neutral'>interface ISemaphoreWhistleblowing {</span>
+  7 |     | <span class='neutral'>    error Semaphore__CallerIsNotTheEditor();</span>
+  8 |     | <span class='neutral'>    error Semaphore__MerkleTreeDepthIsNotSupported();</span>
+  9 |     | <span class='neutral'></span>
+ 10 |     | <span class='neutral'>    struct Verifier {</span>
+ 11 |     | <span class='neutral'>        address contractAddress;</span>
+ 12 |     | <span class='neutral'>        uint256 merkleTreeDepth;</span>
+ 13 |     | <span class='neutral'>    }</span>
+ 14 |     | <span class='neutral'></span>
+ 15 |     | <span class='neutral'>    /// @dev Emitted when a new entity is created.</span>
+ 16 |     | <span class='neutral'>    /// @param entityId: Id of the entity.</span>
+ 17 |     | <span class='neutral'>    /// @param editor: Editor of the entity.</span>
+ 18 |     | <span class='neutral'>    event EntityCreated(uint256 entityId, address indexed editor);</span>
+ 19 |     | <span class='neutral'></span>
+ 20 |     | <span class='neutral'>    /// @dev Emitted when a whistleblower publish a new leak.</span>
+ 21 |     | <span class='neutral'>    /// @param entityId: Id of the entity.</span>
+ 22 |     | <span class='neutral'>    /// @param leak: News leak.</span>
+ 23 |     | <span class='neutral'>    event LeakPublished(uint256 indexed entityId, uint256 leak);</span>
+ 24 |     | <span class='neutral'></span>
+ 25 |     | <span class='neutral'>    /// @dev Creates an entity and the associated Merkle tree/group.</span>
+ 26 |     | <span class='neutral'>    /// @param entityId: Id of the entity.</span>
+ 27 |     | <span class='neutral'>    /// @param editor: Editor of the entity.</span>
+ 28 |     | <span class='neutral'>    /// @param merkleTreeDepth: Depth of the tree.</span>
+ 29 |     | <span class='neutral'>    function createEntity(</span>
+ 30 |     | <span class='neutral'>        uint256 entityId,</span>
+ 31 |     | <span class='neutral'>        address editor,</span>
+ 32 |     | <span class='neutral'>        uint256 merkleTreeDepth</span>
+ 33 |     | <span class='neutral'>    ) external;</span>
+ 34 |     | <span class='neutral'></span>
+ 35 |     | <span class='neutral'>    /// @dev Adds a whistleblower to an entity.</span>
+ 36 |     | <span class='neutral'>    /// @param entityId: Id of the entity.</span>
+ 37 |     | <span class='neutral'>    /// @param identityCommitment: Identity commitment of the group member.</span>
+ 38 |     | <span class='neutral'>    function addWhistleblower(uint256 entityId, uint256 identityCommitment) external;</span>
+ 39 |     | <span class='neutral'></span>
+ 40 |     | <span class='neutral'>    /// @dev Removes a whistleblower from an entity.</span>
+ 41 |     | <span class='neutral'>    /// @param entityId: Id of the entity.</span>
+ 42 |     | <span class='neutral'>    /// @param identityCommitment: Identity commitment of the group member.</span>
+ 43 |     | <span class='neutral'>    /// @param proofSiblings: Array of the sibling nodes of the proof of membership.</span>
+ 44 |     | <span class='neutral'>    /// @param proofPathIndices: Path of the proof of membership.</span>
+ 45 |     | <span class='neutral'>    function removeWhistleblower(</span>
+ 46 |     | <span class='neutral'>        uint256 entityId,</span>
+ 47 |     | <span class='neutral'>        uint256 identityCommitment,</span>
+ 48 |     | <span class='neutral'>        uint256[] calldata proofSiblings,</span>
+ 49 |     | <span class='neutral'>        uint8[] calldata proofPathIndices</span>
+ 50 |     | <span class='neutral'>    ) external;</span>
+ 51 |     | <span class='neutral'></span>
+ 52 |     | <span class='neutral'>    /// @dev Allows whistleblowers to publish leaks anonymously.</span>
+ 53 |     | <span class='neutral'>    /// @param leak: News leak.</span>
+ 54 |     | <span class='neutral'>    /// @param nullifierHash: Nullifier hash.</span>
+ 55 |     | <span class='neutral'>    /// @param entityId: Id of the entity.</span>
+ 56 |     | <span class='neutral'>    /// @param proof: Private zk-proof parameters.</span>
+ 57 |     | <span class='neutral'>    function publishLeak(</span>
+ 58 |     | <span class='neutral'>        uint256 leak,</span>
+ 59 |     | <span class='neutral'>        uint256 nullifierHash,</span>
+ 60 |     | <span class='neutral'>        uint256 entityId,</span>
+ 61 |     | <span class='neutral'>        uint256[8] calldata proof</span>
+ 62 |     | <span class='neutral'>    ) external;</span>
+ 63 |     | <span class='neutral'>}</span>
+ 64 |     | <span class='neutral'></span>
+
+</code>
+<br />
+

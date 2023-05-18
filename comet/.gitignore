@@ -1,0 +1,29 @@
+# Ignore node stuff
+node_modules/
+yarn-error.log
+
+.DS_Store
+.vscode
+
+# Build files
+artifacts/
+build/
+cache/
+dist/
+crytic-export/
+deployments/hardhat
+deployments/*/artifacts
+deployments/*/cache
+deployments/*/contracts
+deployments/*/aliases.json
+deployments/*/pointers.json
+deployments/*/proxies.json
+
+.env
+coverage/
+coverage.json
+typechain/
+
+test-results.json
+scenario-results.json
+

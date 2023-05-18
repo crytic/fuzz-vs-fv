@@ -1,0 +1,394 @@
+/home/tarun/work/contri/fuzz-vs-fv/fund-eq-of-dai-certora/Testvat.sol
+  1 |     | // SPDX-License-Identifier: AGPL-3.0-or-later
+  2 |     | 
+  3 |     | pragma solidity ^0.8.13;
+  4 |     | 
+  5 |     | import "Vat.sol";
+  6 | *r  | 
+  7 |     | contract TestVat is Vat {
+  8 |     |     bytes32[] public ilkIds;
+  9 |     | 
+ 10 |     |     constructor() {
+ 11 |     |         Line = 1e66;
+ 12 |     |     }
+ 13 |     | 
+ 14 | *r  |     function init(bytes32 ilk) public override auth {
+ 15 | *r  |         super.init(ilk);
+ 16 | *   |         ilks[ilk].spot = 1e66;
+ 17 | *   |         ilks[ilk].line = 1e66;
+ 18 | *   |         ilkIds.push(ilk);
+ 19 |     |     }
+ 20 |     | 
+ 21 | r   |     function frob(bytes32 i, address u, int256 dink, int256 dart) public {
+ 22 | r   |         frob(i, u, u, u,dink,dart);
+ 23 |     |     }
+ 24 |     | 
+ 25 |     |     function sumOfDebt() public view returns (uint256) {
+ 26 |     |         uint256 length = ilkIds.length;
+ 27 |     |         uint256 sum = 0;
+ 28 |     |         for (uint256 i=0; i < length; ++i){
+ 29 |     |             sum = sum + ilks[ilkIds[i]].Art * ilks[ilkIds[i]].rate;
+ 30 |     |         }
+ 31 |     |         return sum;
+ 32 |     |     }
+ 33 |     | 
+ 34 |     |     function echidna_nonzeroart() public view returns (bool) {
+ 35 |     |         uint256 length = ilkIds.length;
+ 36 |     |         bool isZero = true;
+ 37 |     |         for (uint256 i=0; i < length; ++i){
+ 38 |     |             isZero = ilks[ilkIds[i]].Art == 0;
+ 39 |     |             if (!isZero) {
+ 40 |     |                 return isZero;
+ 41 |     |             }
+ 42 |     |         }
+ 43 |     |         return isZero;
+ 44 |     |     }
+ 45 |     | 
+ 46 |     |     function echidna_fund_eq() public view returns (bool) {
+ 47 |     |         return debt == vice + sumOfDebt();
+ 48 |     |     }
+ 49 |     | }
+
+/home/tarun/work/contri/fuzz-vs-fv/fund-eq-of-dai-certora/Vat.sol
+   1 |     | // SPDX-License-Identifier: AGPL-3.0-or-later
+   2 |     | 
+   3 |     | /// vat.sol -- Dai CDP database
+   4 |     | 
+   5 |     | // Note: this is a somewhat updated version from that on Ethereum mainnet,
+   6 |     | // representing an intermediate product during preparation for deployment of
+   7 |     | // MCD on other domains. See https://github.com/makerdao/xdomain-dss. It is not
+   8 |     | // recommended to use or deploy this version. This repo is for pedagogical
+   9 |     | // purposes only.
+  10 |     | 
+  11 |     | // Copyright (C) 2018 Rain <rainbreak@riseup.net>
+  12 |     | //
+  13 |     | // This program is free software: you can redistribute it and/or modify
+  14 |     | // it under the terms of the GNU Affero General Public License as published by
+  15 |     | // the Free Software Foundation, either version 3 of the License, or
+  16 |     | // (at your option) any later version.
+  17 |     | //
+  18 |     | // This program is distributed in the hope that it will be useful,
+  19 |     | // but WITHOUT ANY WARRANTY; without even the implied warranty of
+  20 |     | // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  21 |     | // GNU Affero General Public License for more details.
+  22 |     | //
+  23 |     | // You should have received a copy of the GNU Affero General Public License
+  24 |     | // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  25 |     | 
+  26 |     | pragma solidity ^0.8.13;
+  27 |     | 
+  28 |     | contract Vat {
+  29 |     |     // --- Data ---
+  30 |     |     mapping (address => uint256) public wards;
+  31 |     | 
+  32 |     |     mapping(address => mapping (address => uint256)) public can;
+  33 |     | 
+  34 |     |     struct Ilk {
+  35 |     |         uint256 Art;   // Total Normalised Debt     [wad]
+  36 |     |         uint256 rate;  // Accumulated Rates         [ray]
+  37 |     |         uint256 spot;  // Price with Safety Margin  [ray]
+  38 |     |         uint256 line;  // Debt Ceiling              [rad]
+  39 |     |         uint256 dust;  // Urn Debt Floor            [rad]
+  40 |     |     }
+  41 |     |     struct Urn {
+  42 |     |         uint256 ink;   // Locked Collateral  [wad]
+  43 |     |         uint256 art;   // Normalised Debt    [wad]
+  44 |     |     }
+  45 |     | 
+  46 | *   |     mapping (bytes32 => Ilk)                       public ilks;
+  47 |     |     mapping (bytes32 => mapping (address => Urn )) public urns;
+  48 |     |     mapping (bytes32 => mapping (address => uint)) public gem;  // [wad]
+  49 |     |     mapping (address => uint256)                   public dai;  // [rad]
+  50 | *   |     mapping (address => uint256)                   public sin;  // [rad]
+  51 |     | 
+  52 |     |     uint256 public debt;  // Total Dai Issued    [rad]
+  53 |     |     uint256 public vice;  // Total Unbacked Dai  [rad]
+  54 |     |     uint256 public Line;  // Total Debt Ceiling  [rad]
+  55 |     |     uint256 public live;  // Active Flag
+  56 |     | 
+  57 |     |     // --- Events ---
+  58 |     |     event Rely(address indexed usr);
+  59 |     |     event Deny(address indexed usr);
+  60 |     |     event Init(bytes32 indexed ilk);
+  61 |     |     event File(bytes32 indexed what, uint256 data);
+  62 |     |     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
+  63 |     |     event Cage();
+  64 |     |     event Hope(address indexed from, address indexed to);
+  65 |     |     event Nope(address indexed from, address indexed to);
+  66 |     |     event Slip(bytes32 indexed ilk, address indexed usr, int256 wad);
+  67 |     |     event Flux(bytes32 indexed ilk, address indexed src, address indexed dst, uint256 wad);
+  68 |     |     event Move(address indexed src, address indexed dst, uint256 rad);
+  69 |     |     event Frob(bytes32 indexed i, address indexed u, address v, address w, int256 dink, int256 dart);
+  70 |     |     event Fork(bytes32 indexed ilk, address indexed src, address indexed dst, int256 dink, int256 dart);
+  71 |     |     event Grab(bytes32 indexed i, address indexed u, address v, address w, int256 dink, int256 dart);
+  72 |     |     event Heal(address indexed u, uint256 rad);
+  73 |     |     event Suck(address indexed u, address indexed v, uint256 rad);
+  74 |     |     event Fold(bytes32 indexed i, address indexed u, int256 rate);
+  75 |     | 
+  76 |     |     modifier auth {
+  77 | *r  |         require(wards[msg.sender] == 1, "Vat/not-authorized");
+  78 |     |         _;
+  79 |     |     }
+  80 |     | 
+  81 | *r  |     function wish(address bit, address usr) internal view returns (bool) {
+  82 | *r  |         return either(bit == usr, can[bit][usr] == 1);
+  83 |     |     }
+  84 |     | 
+  85 |     |     // --- Init ---
+  86 |     |     constructor() {
+  87 |     |         wards[msg.sender] = 1;
+  88 |     |         live = 1;
+  89 |     |         emit Rely(msg.sender);
+  90 |     |     }
+  91 |     | 
+  92 |     |     // --- Math ---
+  93 | *r  |     function _add(uint256 x, int256 y) internal pure returns (uint256 z) {
+  94 |     |         unchecked {
+  95 | *r  |             z = x + uint256(y);
+  96 |     |         }
+  97 | *r  |         require(y >= 0 || z <= x);
+  98 | *r  |         require(y <= 0 || z >= x);
+  99 |     |     }
+ 100 |     | 
+ 101 | *r  |     function _sub(uint256 x, int256 y) internal pure returns (uint256 z) {
+ 102 |     |         unchecked {
+ 103 | *r  |             z = x - uint256(y);
+ 104 |     |         }
+ 105 | *r  |         require(y <= 0 || z <= x);
+ 106 | *r  |         require(y >= 0 || z >= x);
+ 107 |     |     }
+ 108 |     | 
+ 109 | *r  |     function _int256(uint256 x) internal pure returns (int256 y) {
+ 110 | *r  |         require((y = int256(x)) >= 0);
+ 111 |     |     }
+ 112 |     | 
+ 113 |     |     // --- Administration ---
+ 114 | *r  |     function rely(address usr) external auth {
+ 115 | *   |         require(live == 1, "Vat/not-live");
+ 116 | *   |         wards[usr] = 1;
+ 117 | *   |         emit Rely(usr);
+ 118 |     |     }
+ 119 |     | 
+ 120 | *r  |     function deny(address usr) external auth {
+ 121 | *   |         require(live == 1, "Vat/not-live");
+ 122 | *   |         wards[usr] = 0;
+ 123 | *   |         emit Deny(usr);
+ 124 |     |     }
+ 125 |     | 
+ 126 | *r  |     function init(bytes32 ilk) public virtual auth {
+ 127 | *r  |         require(ilks[ilk].rate == 0, "Vat/ilk-already-init");
+ 128 | *   |         ilks[ilk].rate = 10 ** 27;
+ 129 | *   |         emit Init(ilk);
+ 130 |     |     }
+ 131 |     | 
+ 132 |     |     function file(bytes32 what, uint256 data) public auth {
+ 133 |     |         require(live == 1, "Vat/not-live");
+ 134 |     |         if (what == "Line") Line = data;
+ 135 |     |         else revert("Vat/file-unrecognized-param");
+ 136 |     |         emit File(what, data);
+ 137 |     |     }
+ 138 |     | 
+ 139 |     |     function file(bytes32 ilk, bytes32 what, uint256 data) public auth {
+ 140 |     |         require(live == 1, "Vat/not-live");
+ 141 |     |         if (what == "spot") ilks[ilk].spot = data;
+ 142 |     |         else if (what == "line") ilks[ilk].line = data;
+ 143 |     |         else if (what == "dust") ilks[ilk].dust = data;
+ 144 |     |         else revert("Vat/file-unrecognized-param");
+ 145 |     |         emit File(ilk, what, data);
+ 146 |     |     }
+ 147 |     | 
+ 148 |     |     function cage() external auth {
+ 149 |     |         live = 0;
+ 150 |     |         emit Cage();
+ 151 |     |     }
+ 152 |     | 
+ 153 |     |     // --- Structs getters ---
+ 154 |     |     function Art(bytes32 ilk) external view returns (uint256 Art_) {
+ 155 |     |         Art_ = ilks[ilk].Art;
+ 156 |     |     }
+ 157 |     | 
+ 158 |     |     function rate(bytes32 ilk) external view returns (uint256 rate_) {
+ 159 |     |         rate_ = ilks[ilk].rate;
+ 160 |     |     }
+ 161 |     | 
+ 162 |     |     function spot(bytes32 ilk) external view returns (uint256 spot_) {
+ 163 |     |         spot_ = ilks[ilk].spot;
+ 164 |     |     }
+ 165 |     | 
+ 166 | *   |     function line(bytes32 ilk) external view returns (uint256 line_) {
+ 167 | *   |         line_ = ilks[ilk].line;
+ 168 |     |     }
+ 169 |     | 
+ 170 |     |     function dust(bytes32 ilk) external view returns (uint256 dust_) {
+ 171 |     |         dust_ = ilks[ilk].dust;
+ 172 |     |     }
+ 173 |     | 
+ 174 |     |     function ink(bytes32 ilk, address urn) external view returns (uint256 ink_) {
+ 175 |     |         ink_ = urns[ilk][urn].ink;
+ 176 |     |     }
+ 177 |     | 
+ 178 | *   |     function art(bytes32 ilk, address urn) external view returns (uint256 art_) {
+ 179 | *   |         art_ = urns[ilk][urn].art;
+ 180 |     |     }
+ 181 |     | 
+ 182 |     |     // --- Allowance ---
+ 183 | *   |     function hope(address usr) external {
+ 184 | *   |         can[msg.sender][usr] = 1;
+ 185 | *   |         emit Hope(msg.sender, usr);
+ 186 |     |     }
+ 187 |     | 
+ 188 | *   |     function nope(address usr) external {
+ 189 | *   |         can[msg.sender][usr] = 0;
+ 190 | *   |         emit Nope(msg.sender, usr);
+ 191 |     |     }
+ 192 |     | 
+ 193 |     |     // --- Fungibility ---
+ 194 | *r  |     function slip(bytes32 ilk, address usr, int256 wad) external auth {
+ 195 | *r  |         gem[ilk][usr] = _add(gem[ilk][usr], wad);
+ 196 | *   |         emit Slip(ilk, usr, wad);
+ 197 |     |     }
+ 198 |     | 
+ 199 | *r  |     function flux(bytes32 ilk, address src, address dst, uint256 wad) external {
+ 200 | *r  |         require(wish(src, msg.sender), "Vat/not-allowed");
+ 201 | *r  |         gem[ilk][src] = gem[ilk][src] - wad;
+ 202 | *   |         gem[ilk][dst] = gem[ilk][dst] + wad;
+ 203 | *   |         emit Flux(ilk, src, dst, wad);
+ 204 |     |     }
+ 205 |     | 
+ 206 | r   |     function move(address src, address dst, uint256 rad) external {
+ 207 | r   |         require(wish(src, msg.sender), "Vat/not-allowed");
+ 208 | r   |         dai[src] = dai[src] - rad;
+ 209 |     |         dai[dst] = dai[dst] + rad;
+ 210 |     |         emit Move(src, dst, rad);
+ 211 |     |     }
+ 212 |     | 
+ 213 | *r  |     function either(bool x, bool y) internal pure returns (bool z) {
+ 214 | *r  |         assembly{ z := or(x, y)}
+ 215 |     |     }
+ 216 |     | 
+ 217 | r   |     function both(bool x, bool y) internal pure returns (bool z) {
+ 218 | r   |         assembly{ z := and(x, y)}
+ 219 |     |     }
+ 220 |     | 
+ 221 |     |     // --- CDP Manipulation ---
+ 222 | r   |     function frob(bytes32 i, address u, address v, address w, int256 dink, int256 dart) public {
+ 223 |     |         // system is live
+ 224 | r   |         require(live == 1, "Vat/not-live");
+ 225 |     | 
+ 226 | r   |         Urn memory urn = urns[i][u];
+ 227 | r   |         Ilk memory ilk = ilks[i];
+ 228 |     |         // ilk has been initialised
+ 229 | r   |         require(ilk.rate != 0, "Vat/ilk-not-init");
+ 230 |     | 
+ 231 | r   |         urn.ink = _add(urn.ink, dink);
+ 232 | r   |         urn.art = _add(urn.art, dart);
+ 233 | r   |         ilk.Art = _add(ilk.Art, dart);
+ 234 |     | 
+ 235 | r   |         int256 dtab = _int256(ilk.rate) * dart;
+ 236 | r   |         uint256 tab = ilk.rate * urn.art;
+ 237 | r   |         debt     = _add(debt, dtab);
+ 238 |     | 
+ 239 |     |         // either debt has decreased, or debt ceilings are not exceeded
+ 240 | r   |         require(either(dart <= 0, both(ilk.Art * ilk.rate <= ilk.line, debt <= Line)), "Vat/ceiling-exceeded");
+ 241 |     |         // urn is either less risky than before, or it is safe
+ 242 |     |         require(either(both(dart <= 0, dink >= 0), tab <= urn.ink * ilk.spot), "Vat/not-safe");
+ 243 |     | 
+ 244 |     |         // urn is either more safe, or the owner consents
+ 245 |     |         require(either(both(dart <= 0, dink >= 0), wish(u, msg.sender)), "Vat/not-allowed-u");
+ 246 |     |         // collateral src consents
+ 247 |     |         require(either(dink <= 0, wish(v, msg.sender)), "Vat/not-allowed-v");
+ 248 |     |         // debt dst consents
+ 249 |     |         require(either(dart >= 0, wish(w, msg.sender)), "Vat/not-allowed-w");
+ 250 |     | 
+ 251 |     |         // urn has no debt, or a non-dusty amount
+ 252 |     |         require(either(urn.art == 0, tab >= ilk.dust), "Vat/dust");
+ 253 |     | 
+ 254 |     |         gem[i][v] = _sub(gem[i][v], dink);
+ 255 |     |         dai[w]    = _add(dai[w],    dtab);
+ 256 |     | 
+ 257 |     |         urns[i][u] = urn;
+ 258 |     |         ilks[i]    = ilk;
+ 259 |     | 
+ 260 |     |         emit Frob(i, u, v, w, dink, dart);
+ 261 |     |     }
+ 262 |     | 
+ 263 |     |     // --- CDP Fungibility ---
+ 264 | r   |     function fork(bytes32 ilk, address src, address dst, int256 dink, int256 dart) external {
+ 265 | r   |         Urn storage u = urns[ilk][src];
+ 266 | r   |         Urn storage v = urns[ilk][dst];
+ 267 | r   |         Ilk storage i = ilks[ilk];
+ 268 |     | 
+ 269 | r   |         u.ink = _sub(u.ink, dink);
+ 270 | r   |         u.art = _sub(u.art, dart);
+ 271 | r   |         v.ink = _add(v.ink, dink);
+ 272 | r   |         v.art = _add(v.art, dart);
+ 273 |     | 
+ 274 |     |         uint256 utab = u.art * i.rate;
+ 275 |     |         uint256 vtab = v.art * i.rate;
+ 276 |     | 
+ 277 |     |         // both sides consent
+ 278 |     |         require(both(wish(src, msg.sender), wish(dst, msg.sender)), "Vat/not-allowed");
+ 279 |     | 
+ 280 |     |         // both sides safe
+ 281 |     |         require(utab <= u.ink * i.spot, "Vat/not-safe-src");
+ 282 |     |         require(vtab <= v.ink * i.spot, "Vat/not-safe-dst");
+ 283 |     | 
+ 284 |     |         // both sides non-dusty
+ 285 |     |         require(either(utab >= i.dust, u.art == 0), "Vat/dust-src");
+ 286 |     |         require(either(vtab >= i.dust, v.art == 0), "Vat/dust-dst");
+ 287 |     | 
+ 288 |     |         emit Fork(ilk, src, dst, dink, dart);
+ 289 |     |     }
+ 290 |     | 
+ 291 |     |     // --- CDP Confiscation ---
+ 292 | *r  |     function grab(bytes32 i, address u, address v, address w, int256 dink, int256 dart) external auth {
+ 293 | *r  |         Urn storage urn = urns[i][u];
+ 294 | *r  |         Ilk storage ilk = ilks[i];
+ 295 |     | 
+ 296 | *r  |         urn.ink = _add(urn.ink, dink);
+ 297 | *r  |         urn.art = _add(urn.art, dart);
+ 298 | *r  |         ilk.Art = _add(ilk.Art, dart);
+ 299 |     | 
+ 300 | *r  |         int256 dtab = _int256(ilk.rate) * dart;
+ 301 |     | 
+ 302 | *r  |         gem[i][v] = _sub(gem[i][v], dink);
+ 303 | *   |         sin[w]    = _sub(sin[w],    dtab);
+ 304 | *   |         vice      = _sub(vice,      dtab);
+ 305 |     | 
+ 306 | *   |         emit Grab(i, u, v, w, dink, dart);
+ 307 |     |     }
+ 308 |     | 
+ 309 |     |     // --- Settlement ---
+ 310 | *r  |     function heal(uint256 rad) external {
+ 311 | *r  |         address u = msg.sender;
+ 312 | *r  |         sin[u] = sin[u] - rad;
+ 313 | *r  |         dai[u] = dai[u] - rad;
+ 314 | *   |         vice   = vice   - rad;
+ 315 | *   |         debt   = debt   - rad;
+ 316 |     | 
+ 317 | *   |         emit Heal(msg.sender, rad);
+ 318 |     |     }
+ 319 |     | 
+ 320 | *r  |     function suck(address u, address v, uint256 rad) external auth {
+ 321 | *r  |         sin[u] = sin[u] + rad;
+ 322 | *r  |         dai[v] = dai[v] + rad;
+ 323 | *r  |         vice   = vice   + rad;
+ 324 | *   |         debt   = debt   + rad;
+ 325 |     | 
+ 326 | *   |         emit Suck(u, v, rad);
+ 327 |     |     }
+ 328 |     | 
+ 329 |     |     // --- Rates ---
+ 330 | *r  |     function fold(bytes32 i, address u, int256 rate_) external auth {
+ 331 | *r  |         require(live == 1, "Vat/not-live");
+ 332 | *r  |         Ilk storage ilk = ilks[i];
+ 333 | *r  |         ilk.rate    = _add(ilk.rate, rate_);
+ 334 | *   |         int256 rad  = _int256(ilk.Art) * rate_;
+ 335 | *   |         dai[u]      = _add(dai[u], rad);
+ 336 | *   |         debt        = _add(debt,   rad);
+ 337 |     | 
+ 338 | *   |         emit Fold(i, u, rate_);
+ 339 |     |     }
+ 340 |     | }
+ 341 |     | 
+

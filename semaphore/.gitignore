@@ -1,0 +1,14 @@
+package-lock.json
+package.json
+
+.DS_Store
+.vscode
+
+# Build files
+artifacts/
+build/
+cache/
+dist/
+out/
+lib/
+crytic-export/
