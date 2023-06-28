@@ -1,12 +1,12 @@
 deployer: "0x30000" 
 sender: ["0x30000"]
-filterBlacklist: true
-filterFunctions: [
-  "TestVat.cage()", 
-  "TestVat.file(bytes32,uint256)", 
-  "TestVat.file(bytes32,bytes32,uint256)", 
-  "deny(address)",
-  "frob(bytes32,address,address,address,int256,int256)"
-]
+#filterBlacklist: true
+#filterFunctions: [
+#  "TestVat.cage()", 
+#  "TestVat.file(bytes32,uint256)", 
+#  "TestVat.file(bytes32,bytes32,uint256)", 
+#  "deny(address)",
+#  "frob(bytes32,address,address,address,int256,int256)"
+#]
 corpusDir: "corpus"
-testLimit: 500000
+#testLimit: 500000
