@@ -7,19 +7,9 @@ import "Vat.sol";
 contract TestVat is Vat {
     bytes32[] public ilkIds;
 
-    constructor() {
-        Line = 1e66;
-    }
-
     function init(bytes32 ilk) public override auth {
         super.init(ilk);
-        ilks[ilk].spot = 1e66;
-        ilks[ilk].line = 1e66;
         ilkIds.push(ilk);
-    }
-
-    function frob(bytes32 i, address u, int256 dink, int256 dart) public {
-        frob(i, u, u, u,dink,dart);
     }
 
     function sumOfDebt() public view returns (uint256) {
