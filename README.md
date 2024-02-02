@@ -30,13 +30,3 @@ The code and test file for Compound Comet project is in `comet` directory. Steps
     $ echidna . --contract TestComet --config config.yaml
     ```
 Echidna will run for a few seconds and produce the sequence of transactions to violate the invariants.
-
-## Semaphore
-
-The code and test file for Sempahore project is in `semaphore` directory. 
-
-- Install foundry tools from https://github.com/foundry-rs/foundry
-- Run Echidna with:
-    ```
-    $ echidna . --contract TestSemaphore --config config.yaml
-    ```

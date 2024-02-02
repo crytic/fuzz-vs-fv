@@ -1,9 +1,0 @@
-deployer: "0x30000" 
-sender: ["0x10000", "0x20000", "0x30000"]
-corpusDir: "echidna-corpus"
-testLimit: 50000
-deployContracts: [
-  ["0x1234000000000000000000000000000000000000", "PoseidonT3"],
-  ["0x5678000000000000000000000000000000000000", "IncrementalBinaryTree"],
-  ["0xabcd000000000000000000000000000000000000", "Pairing"]
-]
